@@ -130,7 +130,7 @@
       'wage','apply_link','description',
       'created_at','created_at_external','approved'
     ].join(','));
-    p.set('order','coalesce(created_at_external,created_at).desc');
+   p.set('order','created_at_external.desc,created_at.desc');
     p.set('limit','20');
 
     // Only show approved rows (safe for public)
