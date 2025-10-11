@@ -1,54 +1,76 @@
-// This is a Vercel Serverless Function
-// It will handle requests to /api/fetch-jobs
+// GET /api/fetch-jobs
+// Optional: ?q=...&where=...&days=...&limit=20 (defaults set for your use case)
 
-export default async function handler(request, response) {
-  // 1. Get our secret API credentials from Vercel Environment Variables
+export default async function handler(req, res) {
+  // CORS so the plain index.html can call this
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') return res.status(200).end();
+
   const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
   const ADZUNA_API_KEY = process.env.ADZUNA_API_KEY;
-
-  // Check if the credentials are set, if not, return an error
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return response.status(500).json({ error: "API credentials are not configured." });
+    return res.status(500).json({ error: 'API credentials are not configured.' });
   }
 
-  // 2. Define the search parameters for the Adzuna API
-  const country = 'us'; // Search in the United States
-  const resultsPerPage = 20; // Get up to 20 results
-  const location = 'Mercer County, New Jersey'; // Target location
-  const maxDaysOld = 1; // Only get jobs posted in the last 24 hours
+  // Defaults tuned for Mercer County entry-level
+  const DEFAULT_Q =
+    '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
+  const DEFAULT_WHERE = 'Mercer County, New Jersey';
+  const DEFAULT_DAYS = '3';
+  const DEFAULT_LIMIT = '20';
+  const PAGE = '1';
+  const country = 'us';
 
-  // 3. Construct the full Adzuna API URL with our parameters
-  const adzunaUrl = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/search/1`);
-  adzunaUrl.searchParams.set('app_id', ADZUNA_APP_ID);
-  adzunaUrl.searchParams.set('app_key', ADZUNA_API_KEY);
-  adzunaUrl.searchParams.set('results_per_page', resultsPerPage);
-  adzunaUrl.searchParams.set('where', location);
-  adzunaUrl.searchParams.set('max_days_old', maxDaysOld);
-  adzunaUrl.searchParams.set('sort_by', 'date'); // Sort by the newest jobs first
+  const q = (req.query.q || DEFAULT_Q).toString();
+  const where = (req.query.where || DEFAULT_WHERE).toString();
+  const days = String(
+    Math.max(1, Math.min(14, parseInt(req.query.days || DEFAULT_DAYS, 10) || 3))
+  );
+  const limit = String(
+    Math.max(1, Math.min(100, parseInt(req.query.limit || DEFAULT_LIMIT, 10) || 20))
+  );
+
+  // Build Adzuna request
+  const url = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/search/${PAGE}`);
+  url.searchParams.set('app_id', ADZUNA_APP_ID);
+  url.searchParams.set('app_key', ADZUNA_API_KEY);
+  url.searchParams.set('results_per_page', limit);
+  url.searchParams.set('what', q);
+  url.searchParams.set('where', where);
+  url.searchParams.set('max_days_old', days);
+  url.searchParams.set('sort_by', 'date'); // newest first
 
   try {
-    // 4. Call the Adzuna API
-    console.log(`Fetching jobs from: ${adzunaUrl}`);
-    const apiResponse = await fetch(adzunaUrl.toString());
-
-    // If the request to Adzuna was not successful, throw an error
-    if (!apiResponse.ok) {
-      const errorText = await apiResponse.text();
-      throw new Error(`Adzuna API Error: ${apiResponse.status} ${errorText}`);
+    const r = await fetch(url.toString());
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`Adzuna API Error: ${r.status} ${text}`);
     }
+    const data = await r.json();
 
-    // Parse the JSON data from the response
-    const data = await apiResponse.json();
+    // Normalize the payload (keep what the UI needs)
+    const jobs = (data.results || []).map(j => ({
+      id: j.id,
+      title: j.title || '',
+      company: j.company?.display_name || '—',
+      industry: j.category?.label || 'Uncategorized',
+      location: j.location?.display_name || '—',
+      description: j.description || '',
+      created: j.created || j.created_at || '',
+      salary_min: j.salary_min ?? null,
+      salary_max: j.salary_max ?? null,
+      salary_is_predicted: j.salary_is_predicted ?? '0',
+      redirect_url: j.redirect_url
+    }));
 
-    // 5. Send the job results back as the response from our own API
-    return response.status(200).json({
-      message: `Successfully found ${data.results.length} new jobs in ${location}.`,
-      jobs: data.results,
+    return res.status(200).json({
+      meta: { where, days: Number(days), limit: Number(limit), count: jobs.length, query: q },
+      jobs
     });
-
-  } catch (error) {
-    // If anything goes wrong during the process, log the error and send a server error response
-    console.error('Failed to fetch jobs:', error);
-    return response.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
+  } catch (err) {
+    console.error('Failed to fetch jobs:', err);
+    return res.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
   }
 }
