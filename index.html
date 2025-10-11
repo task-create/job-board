@@ -4,6 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>TASK — Mercer County Jobs (Top 20)</title>
+<meta name="description" content="Top 20 newest, entry-level friendly jobs around Mercer County for TASK patrons and staff." />
 <style>
   :root{--bg:#f6f8fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--brand:#0ea5e9;--border:#e5e7eb}
   *{box-sizing:border-box}
@@ -29,6 +30,7 @@
   .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
   .desc{font-size:14px;color:#334155;line-height:1.45;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
   .small{font-size:12px;color:var(--muted)}
+  footer{padding:24px 0;color:var(--muted);text-align:center}
 </style>
 </head>
 <body>
@@ -72,11 +74,22 @@
   </div>
 </main>
 
-<script>
-  // Constants
-  const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
+<footer>
+  <div class="wrap small">Data source: Supabase (approved jobs). Transit link starts at TASK, Trenton NJ.</div>
+</footer>
 
-  // Elements
+<script>
+  // ───────────────────────────
+  // REQUIRED: fill these in
+  // ───────────────────────────
+  const SUPABASE_URL  = 'SUPABASE_URL_HERE';         // e.g., https://abcd.supabase.co
+  const SUPABASE_ANON = 'SUPABASE_ANON_KEY_HERE';    // anon public key
+
+  // Optional regional defaults (remove if you didn't add these columns)
+  const DEFAULT_STATE  = 'NJ';
+  const DEFAULT_COUNTY = 'Mercer';
+
+  // UI elements
   const jobsEl = document.getElementById('jobs');
   const kTotal = document.getElementById('kTotal');
   const kCompanies = document.getElementById('kCompanies');
@@ -94,40 +107,63 @@
     .replaceAll("'","&#39;");
   const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleDateString(); };
   const wageLabel = w => w ? `$${Number(w).toFixed(2)}/hr` : '—';
+  const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
   const mapsTransit = (dest) => {
     const p = new URLSearchParams({ api:'1', origin:TASK_ADDR, destination:dest||'', travelmode:'transit' });
     return `https://www.google.com/maps/dir/?${p.toString()}`;
   };
+  function topKey(arr){
+    const m = new Map();
+    for (const k of arr) m.set(k, (m.get(k)||0)+1);
+    let best=null, cnt=0;
+    for (const [k,v] of m) if (v>cnt){best=k;cnt=v;}
+    return best;
+  }
 
   applyBtn.addEventListener('click', loadJobs);
+  document.addEventListener('keydown', (e)=>{
+    if (e.key === 'Enter') loadJobs();
+  });
   document.addEventListener('DOMContentLoaded', loadJobs);
 
   async function loadJobs(){
     jobsEl.innerHTML = '<div class="card"><div class="small">Loading…</div></div>';
 
-    // Build query for /api/feed-jobs
-    const params = new URLSearchParams({ limit: 20 });
-    if (kw.value.trim())  params.set('q', kw.value.trim());
-    if (loc.value.trim()) params.set('location', loc.value.trim());
-    if (ind.value)        params.set('industry', ind.value);
-    if (mw.value)         params.set('min_wage', mw.value);
+    const p = new URLSearchParams();
+    p.set('select', [
+      'id','title','company','industry','location',
+      'wage','apply_link','description',
+      'created_at','created_at_external','approved'
+    ].join(','));
+    p.set('order','coalesce(created_at_external,created_at).desc');
+    p.set('limit','20');
 
-    try {
-      // Primary: read from Supabase via feed endpoint
-      const r = await fetch('/api/feed-jobs?' + params.toString());
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Feed error');
+    // Only show approved rows by default (safe for public)
+    p.set('approved','is.true');
 
-      let list = data.jobs || [];
+    // If your table has these columns, keep results scoped
+    if (DEFAULT_STATE)  p.set('state',  `eq.${DEFAULT_STATE}`);
+    if (DEFAULT_COUNTY) p.set('county', `eq.${DEFAULT_COUNTY}`);
 
-      // Fallback to live Adzuna if DB is empty (optional)
-      if (list.length === 0 && !params.toString()) {
-        const live = await (await fetch('/api/fetch-jobs?limit=20')).json();
-        list = live.jobs || [];
-      }
+    // Filters
+    const qv = kw.value.trim();
+    const lv = loc.value.trim();
+    const iv = ind.value;
+    const mv = mw.value;
 
+    if (iv)        p.set('industry', `eq.${iv}`);
+    if (mv)        p.set('wage', `gte.${mv}`);
+    if (lv)        p.set('location', `ilike.%${lv}%`);
+    if (qv)        p.set('or', `(title.ilike.%${qv}%,company.ilike.%${qv}%,industry.ilike.%${qv}%,location.ilike.%${qv}%)`);
+
+    try{
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/jobs?${p.toString()}`, {
+        headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${SUPABASE_ANON}` }
+      });
+      if (!r.ok) throw new Error(await r.text());
+      const list = await r.json();
       render(list);
-    } catch (e) {
+    }catch(e){
       jobsEl.innerHTML = `<div class="card"><div class="small" style="color:#b91c1c">Error: ${escapeHtml(e.message)}</div></div>`;
     }
   }
@@ -136,18 +172,16 @@
     // Stats
     kTotal.textContent = String(list.length || 0);
     kCompanies.textContent = String(new Set(list.map(j => (j.company || '—'))).size);
-    const topIndustry = topKey(list.map(j => j.industry || '—'));
-    kIndustry.textContent = topIndustry || '—';
+    kIndustry.textContent = topKey(list.map(j => j.industry || '—')) || '—';
 
     if (!list.length){
       jobsEl.innerHTML = '<div class="card"><div class="small">No jobs match those filters. Try clearing one or two fields.</div></div>';
       return;
     }
 
-    // Cards
     jobsEl.innerHTML = '';
-    list.forEach(job => {
-      const url = job.apply_link || job.url;
+    for (const job of list){
+      const url = job.apply_link || '#';
       const created = job.created_at_external || job.created_at;
       const card = document.createElement('article');
       card.className = 'card';
@@ -166,17 +200,8 @@
         </div>
       `;
       jobsEl.appendChild(card);
-    });
-  }
-
-  function topKey(arr){
-    const m = new Map();
-    for (const k of arr) m.set(k, (m.get(k)||0)+1);
-    let best=null, cnt=0;
-    for (const [k,v] of m) if (v>cnt){best=k;cnt=v;}
-    return best;
+    }
   }
 </script>
 </body>
 </html>
-
