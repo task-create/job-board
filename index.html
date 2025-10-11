@@ -80,10 +80,10 @@
 
 <script>
   // ───────────────────────────
-  // REQUIRED: set these to YOUR values
+  // Your Supabase info (works on GitHub Pages)
   // ───────────────────────────
-  const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';   // ← full https URL
-  const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';             // ← anon public key only
+  const SUPABASE_URL  = 'https://yamqxbmckcaaltswxmny.supabase.co';
+  const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlhbXF4Ym1ja2NhYWx0c3d4bW55Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjAxMTcxODEsImV4cCI6MjA3NTY5MzE4MX0.KqBwtiCFsu6mwFqiSIV5wmuh7C00-uPK4CADY29r0ws';
 
   // UI elements
   const jobsEl = document.getElementById('jobs');
@@ -147,7 +147,7 @@
     if (lv)        p.set('location', `ilike.%${lv}%`);
     if (qv)        p.set('or', `(title.ilike.%${qv}%,company.ilike.%${qv}%,industry.ilike.%${qv}%,location.ilike.%${qv}%)`);
 
-    // Debug: confirm we’re calling Supabase, not GitHub Pages
+    // Debug line—should show your .supabase.co URL
     console.log('Fetching:', `${SUPABASE_URL}/rest/v1/jobs?${p}`);
 
     try{
