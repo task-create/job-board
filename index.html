@@ -1,51 +1,181 @@
-<script>
-  document.addEventListener('DOMContentLoaded', async () => {
-    const container = document.getElementById('job-listings-container');
-    container.innerHTML = '<p id="loading-message">Fetching the latest jobs…</p>';
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>TASK — Mercer County Jobs (Top 20)</title>
+<style>
+  :root{--bg:#f6f8fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--brand:#0ea5e9;--border:#e5e7eb}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink)}
+  header{position:sticky;top:0;z-index:5;background:#ffffffcc;border-bottom:1px solid var(--border);backdrop-filter:blur(6px)}
+  .wrap{max-width:1040px;margin:0 auto;padding:16px}
+  h1{margin:0 0 4px;font-size:22px}
+  .sub{margin:0;color:var(--muted);font-size:14px}
+  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-top:10px}
+  .filters{display:grid;gap:8px;grid-template-columns:1fr 1fr 1fr 1fr auto}
+  input,select,button{padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:#fff}
+  button{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600;cursor:pointer}
+  main{padding:16px 0 40px}
+  .stats{display:grid;gap:10px;grid-template-columns:repeat(3,1fr);margin-bottom:12px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
+  .k{font-size:22px;font-weight:800}
+  .lbl{font-size:12px;color:var(--muted)}
+  .jobs{display:grid;gap:12px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
+  .ttl{margin:0 0 6px;font-size:18px;font-weight:700}
+  .ttl a{color:#2563eb;text-decoration:none}
+  .ttl a:hover{text-decoration:underline}
+  .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
+  .desc{font-size:14px;color:#334155;line-height:1.45;display:-webkit-box;-webkit-line-clamp:6;-webkit-box-orient:vertical;overflow:hidden}
+  .small{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <h1>TASK — Mercer County Jobs</h1>
+    <p class="sub">Top 20 newest, entry-level friendly roles. Filter by keyword, location, industry, and minimum wage.</p>
 
-    const escapeHtml = s => String(s)
-      .replaceAll('&','&amp;').replaceAll('<','&lt;')
-      .replaceAll('>','&gt;').replaceAll('"','&quot;')
-      .replaceAll("'","&#39;');
-    const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleDateString(); };
+    <!-- Filter bar -->
+    <div class="panel">
+      <div class="filters">
+        <input id="kw" placeholder='Keywords (e.g., "warehouse", "entry level")' />
+        <input id="loc" placeholder="Location (e.g., Trenton)" />
+        <select id="industry">
+          <option value="">All industries</option>
+          <option>Warehouse</option>
+          <option>Culinary</option>
+          <option>Retail</option>
+          <option>Healthcare</option>
+          <option>Manufacturing</option>
+        </select>
+        <input id="minWage" type="number" step="0.01" placeholder="Min $/hr" />
+        <button id="applyFilters">Filter</button>
+      </div>
+      <p class="small" style="margin-top:6px">Tip: Leave fields blank to see everything. “Min $/hr” filters out lower-paying roles.</p>
+    </div>
+  </div>
+</header>
+
+<main>
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat"><div class="k" id="kTotal">—</div><div class="lbl">Jobs</div></div>
+      <div class="stat"><div class="k" id="kCompanies">—</div><div class="lbl">Unique Companies</div></div>
+      <div class="stat"><div class="k" id="kIndustry">—</div><div class="lbl">Top Industry</div></div>
+    </div>
+
+    <section class="jobs" id="jobs">
+      <div class="card"><div class="small">Loading the latest jobs…</div></div>
+    </section>
+  </div>
+</main>
+
+<script>
+  // Constants
+  const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
+
+  // Elements
+  const jobsEl = document.getElementById('jobs');
+  const kTotal = document.getElementById('kTotal');
+  const kCompanies = document.getElementById('kCompanies');
+  const kIndustry = document.getElementById('kIndustry');
+  const kw = document.getElementById('kw');
+  const loc = document.getElementById('loc');
+  const ind = document.getElementById('industry');
+  const mw  = document.getElementById('minWage');
+  const applyBtn = document.getElementById('applyFilters');
+
+  // Helpers
+  const escapeHtml = s => String(s)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;')
+    .replaceAll('>','&gt;').replaceAll('"','&quot;')
+    .replaceAll("'","&#39;");
+  const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleDateString(); };
+  const wageLabel = w => w ? `$${Number(w).toFixed(2)}/hr` : '—';
+  const mapsTransit = (dest) => {
+    const p = new URLSearchParams({ api:'1', origin:TASK_ADDR, destination:dest||'', travelmode:'transit' });
+    return `https://www.google.com/maps/dir/?${p.toString()}`;
+  };
+
+  applyBtn.addEventListener('click', loadJobs);
+  document.addEventListener('DOMContentLoaded', loadJobs);
+
+  async function loadJobs(){
+    jobsEl.innerHTML = '<div class="card"><div class="small">Loading…</div></div>';
+
+    // Build query for /api/feed-jobs
+    const params = new URLSearchParams({ limit: 20 });
+    if (kw.value.trim())  params.set('q', kw.value.trim());
+    if (loc.value.trim()) params.set('location', loc.value.trim());
+    if (ind.value)        params.set('industry', ind.value);
+    if (mw.value)         params.set('min_wage', mw.value);
 
     try {
-      const r = await fetch('/api/feed-jobs?limit=20');
+      // Primary: read from Supabase via feed endpoint
+      const r = await fetch('/api/feed-jobs?' + params.toString());
       const data = await r.json();
-      if (!r.ok || data.error) throw new Error(data.error || 'Feed error');
+      if (!r.ok) throw new Error(data.error || 'Feed error');
 
-      const list = data.jobs || [];
-      if (!list.length) {
-        // fallback to live Adzuna if DB empty
+      let list = data.jobs || [];
+
+      // Fallback to live Adzuna if DB is empty (optional)
+      if (list.length === 0 && !params.toString()) {
         const live = await (await fetch('/api/fetch-jobs?limit=20')).json();
-        render(live.jobs || []);
-        return;
+        list = live.jobs || [];
       }
+
       render(list);
     } catch (e) {
-      container.innerHTML = `<p style="color:red"><strong>Error:</strong> ${e.message}</p>`;
+      jobsEl.innerHTML = `<div class="card"><div class="small" style="color:#b91c1c">Error: ${escapeHtml(e.message)}</div></div>`;
+    }
+  }
+
+  function render(list){
+    // Stats
+    kTotal.textContent = String(list.length || 0);
+    kCompanies.textContent = String(new Set(list.map(j => (j.company || '—'))).size);
+    const topIndustry = topKey(list.map(j => j.industry || '—'));
+    kIndustry.textContent = topIndustry || '—';
+
+    if (!list.length){
+      jobsEl.innerHTML = '<div class="card"><div class="small">No jobs match those filters. Try clearing one or two fields.</div></div>';
+      return;
     }
 
-    function wageLabel(w) { return w ? `$${Number(w).toFixed(2)}/hr` : '—'; }
+    // Cards
+    jobsEl.innerHTML = '';
+    list.forEach(job => {
+      const url = job.apply_link || job.url;
+      const created = job.created_at_external || job.created_at;
+      const card = document.createElement('article');
+      card.className = 'card';
+      card.innerHTML = `
+        <h3 class="ttl"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(job.title || '')}</a></h3>
+        <div class="meta">
+          ${escapeHtml(job.company || '—')} ·
+          ${escapeHtml(job.location || '—')} ·
+          ${escapeHtml(job.industry || '—')} ·
+          ${fmtDate(created)}
+        </div>
+        <div class="desc">${escapeHtml(job.description || '')}</div>
+        <div class="meta" style="margin-top:8px">
+          <strong>Wage:</strong> ${wageLabel(job.wage)} &nbsp;•&nbsp;
+          <a href="${mapsTransit(job.location)}" target="_blank" rel="noopener">Transit from TASK</a>
+        </div>
+      `;
+      jobsEl.appendChild(card);
+    });
+  }
 
-    function render(list) {
-      container.innerHTML = '';
-      list.forEach(job => {
-        const url = job.apply_link || job.url;
-        const created = job.created_at_external || job.created_at;
-        const card = document.createElement('div');
-        card.className = 'job-card';
-        card.innerHTML = `
-          <h2 class="job-title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(job.title || '')}</a></h2>
-          <p class="job-company">${escapeHtml(job.company || '—')}</p>
-          <p class="job-details"><strong>Location:</strong> ${escapeHtml(job.location || '—')}
-             &nbsp;•&nbsp; <strong>Industry:</strong> ${escapeHtml(job.industry || '—')}
-             &nbsp;•&nbsp; <strong>Wage:</strong> ${wageLabel(job.wage)}
-             &nbsp;•&nbsp; <strong>Date:</strong> ${fmtDate(created)}</p>
-          <div class="job-description">${escapeHtml(job.description || '')}</div>
-        `;
-        container.appendChild(card);
-      });
-    }
-  });
+  function topKey(arr){
+    const m = new Map();
+    for (const k of arr) m.set(k, (m.get(k)||0)+1);
+    let best=null, cnt=0;
+    for (const [k,v] of m) if (v>cnt){best=k;cnt=v;}
+    return best;
+  }
 </script>
+</body>
+</html>
