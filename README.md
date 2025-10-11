@@ -1,1 +1,1 @@
-# job-board-assistant
+# job-board
