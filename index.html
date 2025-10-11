@@ -1,255 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>TASK — New Local Jobs (Top 20)</title>
-<style>
-  :root{--bg:#f6f8fb;--card:#fff;--ink:#0f172a;--muted:#64748b;--brand:#0ea5e9;--border:#e5e7eb}
-  *{box-sizing:border-box} body{margin:0;font-family:ui-sans-serif,system-ui,Segoe UI,Roboto,Helvetica,Arial;background:var(--bg);color:var(--ink)}
-  header{position:sticky;top:0;z-index:5;background:#ffffffcc;border-bottom:1px solid var(--border);backdrop-filter:blur(6px)}
-  .wrap{max-width:1040px;margin:0 auto;padding:16px}
-  h1{margin:0 0 4px;font-size:22px} .sub{margin:0;color:var(--muted);font-size:14px}
-  .panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
-  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
-  .chip{border:1px solid #dfe3f5;background:#eef2ff;color:#4338ca;padding:8px 10px;border-radius:999px;font-size:13px;cursor:pointer}
-  .chip.active{background:#dbeafe;border-color:#bfdbfe;color:#1e40af}
-  .controls{display:grid;gap:8px;grid-template-columns:1fr auto}
-  input,select,button{padding:10px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px;background:#fff}
-  button{background:var(--brand);color:#fff;border-color:var(--brand);font-weight:600;cursor:pointer}
-  main{padding:16px 0 40px}
-  .stats{display:grid;gap:10px;grid-template-columns:repeat(3,1fr);margin-bottom:12px}
-  .stat{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px}
-  .k{font-size:22px;font-weight:800}.lbl{font-size:12px;color:var(--muted)}
-  .grid{display:grid;gap:14px;grid-template-columns:1fr} @media(min-width:980px){.grid{grid-template-columns:1fr 320px}}
-  .jobs{display:grid;gap:12px}
-  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px}
-  .ttl{margin:0 0 6px;font-size:18px;font-weight:700}.ttl a{color:#2563eb;text-decoration:none}.ttl a:hover{text-decoration:underline}
-  .meta{font-size:13px;color:var(--muted);margin-bottom:8px}
-  .row{display:grid;gap:8px;grid-template-columns:2fr 1fr 1fr auto}
-  .desc{font-size:14px;color:#334155;line-height:1.45;display:-webkit-box;-webkit-line-clamp:5;-webkit-box-orient:vertical;overflow:hidden}
-  .small{font-size:12px;color:var(--muted)}
-  canvas{width:100%;height:170px;display:block}
-</style>
-</head>
-<body>
-<header>
-  <div class="wrap">
-    <h1>TASK — New Local Jobs (Top 20)</h1>
-    <p class="sub">Most recent, entry-level friendly roles for Mercer County. Use with patrons or for employer outreach.</p>
-
-    <div class="panel">
-      <!-- Quick personas (industry chips) -->
-      <div class="chips" id="chips">
-        <span class="chip" data-q='"entry level" OR warehouse OR "picker packer" OR logistics'>Warehouse / Logistics</span>
-        <span class="chip" data-q='"entry level" OR culinary OR "prep cook" OR "line cook" OR "food service" OR dishwasher'>Culinary / Kitchen</span>
-        <span class="chip" data-q='"entry level" OR retail OR cashier OR "customer service" OR receptionist'>Retail / Customer Service</span>
-        <span class="chip" data-q='"entry level" OR healthcare OR "medical assistant" OR "patient care" OR "rehab aide"'>Healthcare Starter</span>
-        <span class="chip" data-q='"entry level" OR manufacturing OR production OR assembler OR "machine operator"'>Manufacturing / Production</span>
-      </div>
-
-      <div class="controls">
-        <input id="kw" placeholder='Keywords (optional). Tip: use OR to broaden (e.g., "entry level" OR warehouse)' />
-        <button id="refresh">Refresh</button>
-      </div>
-      <p class="small" style="margin:8px 0 0">Leave keywords blank for the standard feed. Results are newest first, capped at 20.</p>
-    </div>
-  </div>
-</header>
-
-<main>
-  <div class="wrap">
-    <div class="stats">
-      <div class="stat"><div class="k" id="kTotal">—</div><div class="lbl">Jobs</div></div>
-      <div class="stat"><div class="k" id="kCompanies">—</div><div class="lbl">Unique Companies</div></div>
-      <div class="stat"><div class="k" id="kTopCat">—</div><div class="lbl">Top Industry</div></div>
-    </div>
-
-    <div class="grid">
-      <section class="jobs" id="jobs">
-        <div class="card"><div class="small">Loading the latest jobs…</div></div>
-      </section>
-
-      <aside>
-        <div class="panel">
-          <strong>Industry Mix</strong>
-          <canvas id="catChart" width="320" height="170" aria-label="Industry chart"></canvas>
-          <p class="small" id="note">Bar shows distribution of categories in the current top-20.</p>
-        </div>
-        <div class="panel" style="margin-top:12px">
-          <button id="exportCsv" style="width:100%">Export CSV</button>
-          <p class="small" style="margin-top:8px">Paste into Supabase until the nightly ingest/cron is added.</p>
-        </div>
-      </aside>
-    </div>
-  </div>
-</main>
-
 <script>
-  // TASK location for transit directions
-  const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
+  // Elements
+  const container = document.getElementById('job-listings-container');
 
-  const chips = document.getElementById('chips');
-  const kw = document.getElementById('kw');
-  const refresh = document.getElementById('refresh');
-  const jobsEl = document.getElementById('jobs');
-  const kTotal = document.getElementById('kTotal');
-  const kCompanies = document.getElementById('kCompanies');
-  const kTopCat = document.getElementById('kTopCat');
-  const catCanvas = document.getElementById('catChart');
-  const ctx = catCanvas.getContext('2d');
-
-  let currentJobs = [];
-
-  chips.addEventListener('click', e => {
-    const chip = e.target.closest('.chip');
-    if (!chip) return;
-    chips.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
-    chip.classList.add('active');
-    kw.value = chip.dataset.q;
-    fetchJobs();
-  });
-  refresh.addEventListener('click', fetchJobs);
-
-  function escapeHtml(s=''){return String(s).replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'","&#39;');}
+  function escapeHtml(s=''){return String(s)
+    .replaceAll('&','&amp;').replaceAll('<','&lt;')
+    .replaceAll('>','&gt;').replaceAll('"','&quot;')
+    .replaceAll("'","&#39;');}
   function fmtDate(s){const d=new Date(s);return isNaN(d)?'—':d.toLocaleDateString();}
-  function hourlyFromAnnual(a){ if(!a || isNaN(a)) return null; return a/2080; } // 2080 hrs/year
-
-  function wageLabel(j){
-    // choose min/max if present; compute hourly estimate
-    const loH = hourlyFromAnnual(j.salary_min);
-    const hiH = hourlyFromAnnual(j.salary_max);
-    if (loH && hiH) return `$${loH.toFixed(2)}–$${hiH.toFixed(2)}/hr`;
-    if (hiH) return `up to $${hiH.toFixed(2)}/hr`;
-    if (loH) return `from $${loH.toFixed(2)}/hr`;
+  function wageLabel(minH, maxH){
+    if (minH && maxH) return `$${minH.toFixed(2)}–$${maxH.toFixed(2)}/hr`;
+    if (maxH) return `up to $${maxH.toFixed(2)}/hr`;
+    if (minH) return `from $${minH.toFixed(2)}/hr`;
     return '—';
   }
 
-  function mapsTransitLink(job){
-    // Opens Google Maps in Transit mode from TASK to the job’s location text
-    const params = new URLSearchParams({
-      api: '1',
-      origin: TASK_ADDR,
-      destination: job.location || '',
-      travelmode: 'transit'
-    });
-    return `https://www.google.com/maps/dir/?${params.toString()}`;
+  async function getFromSupabase() {
+    const r = await fetch('/api/feed-jobs?limit=20');
+    if (!r.ok) throw new Error('supabase feed error');
+    return r.json();
+  }
+  async function getLiveAdzuna() {
+    const r = await fetch('/api/fetch-jobs?limit=20');
+    if (!r.ok) throw new Error('adzuna fetch error');
+    return r.json();
   }
 
-  async function fetchJobs(){
-    jobsEl.innerHTML = '<div class="card"><div class="small">Loading…</div></div>';
-    const q = kw.value.trim();
-    const url = '/api/fetch-jobs' + (q ? `?${new URLSearchParams({ q })}` : '');
-
-    try {
-      const r = await fetch(url);
-      const data = await r.json();
-      if (!r.ok || data.error) throw new Error(data.error || 'Request failed');
-
-      currentJobs = (data.jobs || []).slice(0, 20);
-      render(currentJobs);
-    } catch (e) {
-      console.error(e);
-      jobsEl.innerHTML = `<div class="card"><div class="small" style="color:#b91c1c">Error: ${e.message}</div></div>`;
-    }
-  }
-
-  function render(list){
-    // Stats
-    kTotal.textContent = list.length.toString();
-    kCompanies.textContent = new Set(list.map(j=>j.company)).size.toString();
-    const catCounts = countBy(list.map(j=>j.industry || 'Uncategorized'));
-    kTopCat.textContent = Object.entries(catCounts).sort((a,b)=>b[1]-a[1])[0]?.[0] || '—';
-
-    // Jobs
-    if (!list.length){
-      jobsEl.innerHTML = '<div class="card"><div class="small">No results. Try changing keywords.</div></div>';
-      drawChart([]);
+  function renderJobs(list) {
+    if (!list.length) {
+      container.innerHTML = '<p>No jobs available right now.</p>';
       return;
     }
+    container.innerHTML = '';
+    list.forEach(job => {
+      const card = document.createElement('div');
+      card.className = 'job-card';
+      // job fields vary slightly between sources; normalize here
+      const title = job.title || '';
+      const company = job.company || job.company?.display_name || '—';
+      const location = job.location || job.location?.display_name || '—';
+      const url = job.url || job.redirect_url;
+      const created = job.created_at_external || job.created;
+      const minH = job.salary_min_hourly ?? null;
+      const maxH = job.salary_max_hourly ?? null;
+      const wage = wageLabel(minH, maxH);
 
-    jobsEl.innerHTML = '';
-    list.forEach(j=>{
-      const card = document.createElement('article');
-      card.className = 'card';
       card.innerHTML = `
-        <h3 class="ttl"><a href="${j.redirect_url}" target="_blank" rel="noopener">${escapeHtml(j.title)}</a></h3>
-        <div class="meta">${escapeHtml(j.company)} · ${escapeHtml(j.location)} · ${escapeHtml(j.industry)} · ${fmtDate(j.created)}</div>
-        <div class="row">
-          <div class="desc">${escapeHtml(j.description)}</div>
-          <div><strong>Wage</strong><br>${wageLabel(j)}</div>
-          <div><strong>Links</strong><br>
-            <a href="${j.redirect_url}" target="_blank" rel="noopener">Apply</a><br>
-            <a href="${mapsTransitLink(j)}" target="_blank" rel="noopener">Transit</a>
-          </div>
-          <div><strong>Save</strong><br><button data-id="${j.id}" class="saveBtn">CSV+</button></div>
-        </div>
+        <h2 class="job-title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(title)}</a></h2>
+        <p class="job-company">${escapeHtml(company)}</p>
+        <p class="job-details"><strong>Location:</strong> ${escapeHtml(location)} &nbsp;•&nbsp; <strong>Wage:</strong> ${wage} &nbsp;•&nbsp; <strong>Date:</strong> ${fmtDate(created)}</p>
+        <div class="job-description">${escapeHtml(job.description || '')}</div>
       `;
-      jobsEl.appendChild(card);
-    });
-
-    // Small chart
-    drawChart(Object.entries(catCounts).sort((a,b)=>b[1]-a[1]).slice(0,6));
-
-    // Per-card save button appends a single-row CSV to the download (quick handoff)
-    jobsEl.querySelectorAll('.saveBtn').forEach(btn=>{
-      btn.addEventListener('click', () => saveOneCsv(btn.dataset.id));
+      container.appendChild(card);
     });
   }
 
-  function countBy(arr){return arr.reduce((m,k)=>(m[k]=(m[k]||0)+1,m),{});}
-
-  function drawChart(entries){
-    const W=catCanvas.width,H=catCanvas.height,pad=24;
-    ctx.clearRect(0,0,W,H);
-    if (!entries.length) return;
-    const maxV = Math.max(...entries.map(([,v])=>v));
-    const bw = (W - pad*2)/entries.length - 8;
-    const scale = (H - pad*2)/(maxV||1);
-    ctx.font='12px system-ui,sans-serif';
-    entries.forEach(([name,val],i)=>{
-      const x = pad + i*(bw+8);
-      const h = Math.max(4, val*scale);
-      const y = H - pad - h;
-      ctx.fillStyle = '#93c5fd'; ctx.fillRect(x,y,bw,h);
-      ctx.fillStyle = '#0f172a'; ctx.fillText(String(val), x + bw/2 - 6, y - 4);
-      ctx.fillStyle = '#64748b';
-      const lab = name.length>12 ? name.slice(0,12)+'…' : name;
-      ctx.fillText(lab, x, H - pad + 14);
-    });
-    ctx.strokeStyle = '#e5e7eb'; ctx.beginPath(); ctx.moveTo(pad,H-pad); ctx.lineTo(W-pad,H-pad); ctx.stroke();
-  }
-
-  // Export current list as CSV (for Supabase import)
-  document.getElementById('exportCsv').addEventListener('click', () => {
-    if (!currentJobs.length) return;
-    const headers = ['id','title','company','industry','location','created','salary_min','salary_max','redirect_url','description'];
-    const rows = currentJobs.map(j => headers.map(h => csvSafe(j[h])));
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    downloadBlob(csv, 'jobs.csv');
+  document.addEventListener('DOMContentLoaded', async () => {
+    container.innerHTML = '<p id="loading-message">Fetching the latest jobs…</p>';
+    try {
+      // 1) Try Supabase feed (persisted, deduped, reliable)
+      const supa = await getFromSupabase();
+      if (supa.jobs && supa.jobs.length) {
+        renderJobs(supa.jobs);
+        return;
+      }
+      // 2) Fallback to live Adzuna (if DB empty)
+      const live = await getLiveAdzuna();
+      renderJobs(live.jobs || []);
+    } catch (err) {
+      console.error(err);
+      container.innerHTML = `<p style="color:red"><strong>Error:</strong> ${err.message}</p>`;
+    }
   });
-
-  // One-row “quick save” CSV (handy if you’re cherry-picking)
-  function saveOneCsv(id){
-    const j = currentJobs.find(x=>String(x.id)===String(id));
-    if (!j) return;
-    const headers = ['id','title','company','industry','location','created','salary_min','salary_max','redirect_url','description'];
-    const row = headers.map(h => csvSafe(j[h])).join(',');
-    const csv = headers.join(',')+'\n'+row+'\n';
-    downloadBlob(csv, `job_${j.id}.csv`);
-  }
-
-  function downloadBlob(text, name){
-    const blob = new Blob([text],{type:'text/csv;charset=utf-8;'});
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a'); a.href = url; a.download = name;
-    document.body.appendChild(a); a.click(); URL.revokeObjectURL(url); a.remove();
-  }
-
-  function csvSafe(v=''){const s=String(v).replaceAll('"','""'); return `"${s}"`;}
-
-  // initial load
-  fetchJobs();
 </script>
-</body>
-</html>
