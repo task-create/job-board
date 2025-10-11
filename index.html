@@ -1,74 +1,51 @@
 <script>
-  // Elements
-  const container = document.getElementById('job-listings-container');
-
-  function escapeHtml(s=''){return String(s)
-    .replaceAll('&','&amp;').replaceAll('<','&lt;')
-    .replaceAll('>','&gt;').replaceAll('"','&quot;')
-    .replaceAll("'","&#39;');}
-  function fmtDate(s){const d=new Date(s);return isNaN(d)?'—':d.toLocaleDateString();}
-  function wageLabel(minH, maxH){
-    if (minH && maxH) return `$${minH.toFixed(2)}–$${maxH.toFixed(2)}/hr`;
-    if (maxH) return `up to $${maxH.toFixed(2)}/hr`;
-    if (minH) return `from $${minH.toFixed(2)}/hr`;
-    return '—';
-  }
-
-  async function getFromSupabase() {
-    const r = await fetch('/api/feed-jobs?limit=20');
-    if (!r.ok) throw new Error('supabase feed error');
-    return r.json();
-  }
-  async function getLiveAdzuna() {
-    const r = await fetch('/api/fetch-jobs?limit=20');
-    if (!r.ok) throw new Error('adzuna fetch error');
-    return r.json();
-  }
-
-  function renderJobs(list) {
-    if (!list.length) {
-      container.innerHTML = '<p>No jobs available right now.</p>';
-      return;
-    }
-    container.innerHTML = '';
-    list.forEach(job => {
-      const card = document.createElement('div');
-      card.className = 'job-card';
-      // job fields vary slightly between sources; normalize here
-      const title = job.title || '';
-      const company = job.company || job.company?.display_name || '—';
-      const location = job.location || job.location?.display_name || '—';
-      const url = job.url || job.redirect_url;
-      const created = job.created_at_external || job.created;
-      const minH = job.salary_min_hourly ?? null;
-      const maxH = job.salary_max_hourly ?? null;
-      const wage = wageLabel(minH, maxH);
-
-      card.innerHTML = `
-        <h2 class="job-title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(title)}</a></h2>
-        <p class="job-company">${escapeHtml(company)}</p>
-        <p class="job-details"><strong>Location:</strong> ${escapeHtml(location)} &nbsp;•&nbsp; <strong>Wage:</strong> ${wage} &nbsp;•&nbsp; <strong>Date:</strong> ${fmtDate(created)}</p>
-        <div class="job-description">${escapeHtml(job.description || '')}</div>
-      `;
-      container.appendChild(card);
-    });
-  }
-
   document.addEventListener('DOMContentLoaded', async () => {
+    const container = document.getElementById('job-listings-container');
     container.innerHTML = '<p id="loading-message">Fetching the latest jobs…</p>';
+
+    const escapeHtml = s => String(s)
+      .replaceAll('&','&amp;').replaceAll('<','&lt;')
+      .replaceAll('>','&gt;').replaceAll('"','&quot;')
+      .replaceAll("'","&#39;');
+    const fmtDate = s => { const d = new Date(s); return isNaN(d) ? '—' : d.toLocaleDateString(); };
+
     try {
-      // 1) Try Supabase feed (persisted, deduped, reliable)
-      const supa = await getFromSupabase();
-      if (supa.jobs && supa.jobs.length) {
-        renderJobs(supa.jobs);
+      const r = await fetch('/api/feed-jobs?limit=20');
+      const data = await r.json();
+      if (!r.ok || data.error) throw new Error(data.error || 'Feed error');
+
+      const list = data.jobs || [];
+      if (!list.length) {
+        // fallback to live Adzuna if DB empty
+        const live = await (await fetch('/api/fetch-jobs?limit=20')).json();
+        render(live.jobs || []);
         return;
       }
-      // 2) Fallback to live Adzuna (if DB empty)
-      const live = await getLiveAdzuna();
-      renderJobs(live.jobs || []);
-    } catch (err) {
-      console.error(err);
-      container.innerHTML = `<p style="color:red"><strong>Error:</strong> ${err.message}</p>`;
+      render(list);
+    } catch (e) {
+      container.innerHTML = `<p style="color:red"><strong>Error:</strong> ${e.message}</p>`;
+    }
+
+    function wageLabel(w) { return w ? `$${Number(w).toFixed(2)}/hr` : '—'; }
+
+    function render(list) {
+      container.innerHTML = '';
+      list.forEach(job => {
+        const url = job.apply_link || job.url;
+        const created = job.created_at_external || job.created_at;
+        const card = document.createElement('div');
+        card.className = 'job-card';
+        card.innerHTML = `
+          <h2 class="job-title"><a href="${url}" target="_blank" rel="noopener">${escapeHtml(job.title || '')}</a></h2>
+          <p class="job-company">${escapeHtml(job.company || '—')}</p>
+          <p class="job-details"><strong>Location:</strong> ${escapeHtml(job.location || '—')}
+             &nbsp;•&nbsp; <strong>Industry:</strong> ${escapeHtml(job.industry || '—')}
+             &nbsp;•&nbsp; <strong>Wage:</strong> ${wageLabel(job.wage)}
+             &nbsp;•&nbsp; <strong>Date:</strong> ${fmtDate(created)}</p>
+          <div class="job-description">${escapeHtml(job.description || '')}</div>
+        `;
+        container.appendChild(card);
+      });
     }
   });
 </script>
