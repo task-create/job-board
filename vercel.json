@@ -1,0 +1,8 @@
+{
+  "crons": [
+    { "path": "/api/ingest-jobs", "schedule": "5 5 * * *" }
+  ],
+  "functions": {
+    "api/ingest-jobs.js": { "memory": 1024, "maxDuration": 30 }
+  }
+}
