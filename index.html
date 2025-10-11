@@ -80,14 +80,10 @@
 
 <script>
   // ───────────────────────────
-  // REQUIRED: fill these in
+  // REQUIRED: set these to YOUR values
   // ───────────────────────────
-  const SUPABASE_URL  = 'SUPABASE_URL_HERE';         // e.g., https://abcd.supabase.co
-  const SUPABASE_ANON = 'SUPABASE_ANON_KEY_HERE';    // anon public key
-
-  // Optional regional defaults (remove if you didn't add these columns)
-  const DEFAULT_STATE  = 'NJ';
-  const DEFAULT_COUNTY = 'Mercer';
+  const SUPABASE_URL  = 'https://YOUR-PROJECT.supabase.co';   // ← full https URL
+  const SUPABASE_ANON = 'YOUR_SUPABASE_ANON_KEY';             // ← anon public key only
 
   // UI elements
   const jobsEl = document.getElementById('jobs');
@@ -121,14 +117,13 @@
   }
 
   applyBtn.addEventListener('click', loadJobs);
-  document.addEventListener('keydown', (e)=>{
-    if (e.key === 'Enter') loadJobs();
-  });
+  document.addEventListener('keydown', (e)=>{ if (e.key === 'Enter') loadJobs(); });
   document.addEventListener('DOMContentLoaded', loadJobs);
 
   async function loadJobs(){
     jobsEl.innerHTML = '<div class="card"><div class="small">Loading…</div></div>';
 
+    // Build Supabase REST query
     const p = new URLSearchParams();
     p.set('select', [
       'id','title','company','industry','location',
@@ -138,12 +133,8 @@
     p.set('order','coalesce(created_at_external,created_at).desc');
     p.set('limit','20');
 
-    // Only show approved rows by default (safe for public)
+    // Only show approved rows (safe for public)
     p.set('approved','is.true');
-
-    // If your table has these columns, keep results scoped
-    if (DEFAULT_STATE)  p.set('state',  `eq.${DEFAULT_STATE}`);
-    if (DEFAULT_COUNTY) p.set('county', `eq.${DEFAULT_COUNTY}`);
 
     // Filters
     const qv = kw.value.trim();
@@ -155,6 +146,9 @@
     if (mv)        p.set('wage', `gte.${mv}`);
     if (lv)        p.set('location', `ilike.%${lv}%`);
     if (qv)        p.set('or', `(title.ilike.%${qv}%,company.ilike.%${qv}%,industry.ilike.%${qv}%,location.ilike.%${qv}%)`);
+
+    // Debug: confirm we’re calling Supabase, not GitHub Pages
+    console.log('Fetching:', `${SUPABASE_URL}/rest/v1/jobs?${p}`);
 
     try{
       const r = await fetch(`${SUPABASE_URL}/rest/v1/jobs?${p.toString()}`, {
