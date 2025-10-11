@@ -1,4 +1,4 @@
-// /api/feed-jobs?limit=20&q=warehouse&industry=Retail&min_wage=17&location=Trenton
+// /api/feed-jobs?limit=20&approved=true&location=Trenton&min_wage=17&industry=Retail&q=warehouse
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, OPTIONS");
@@ -6,33 +6,35 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(200).end();
 
   const { SUPABASE_URL, SUPABASE_SERVICE_KEY } = process.env;
-  const limit    = Math.max(1, Math.min(100, parseInt(req.query.limit || "20", 10)));
-  const q        = (req.query.q || "").toString().trim();             // keyword: title/company/industry
-  const industry = (req.query.industry || "").toString().trim();      // exact match
-  const location = (req.query.location || "").toString().trim();      // ilike
-  const minWage  = req.query.min_wage ? Number(req.query.min_wage) : null;
+  const p = new URLSearchParams();
 
-  const params = new URLSearchParams();
-  params.set("select", [
+  const limit    = Math.max(1, Math.min(100, parseInt(req.query.limit || "20", 10)));
+  const q        = (req.query.q || "").toString().trim();
+  const industry = (req.query.industry || "").toString().trim();
+  const location = (req.query.location || "").toString().trim();
+  const minWage  = req.query.min_wage ? Number(req.query.min_wage) : null;
+  const approved = (req.query.approved ?? "true").toString(); // default true
+
+  p.set("select", [
     "id","title","company","industry","location",
     "wage","apply_link","description",
-    "created_at","created_at_external"
+    "created_at","created_at_external","approved","reviewed","flagged_reasons"
   ].join(","));
-  params.set("order", "coalesce(created_at_external,created_at).desc");
-  params.set("limit", String(limit));
+  p.set("order", "coalesce(created_at_external,created_at).desc");
+  p.set("limit", String(limit));
+  p.set("state", "eq.NJ");
+  p.set("county", "eq.Mercer");
 
-  // If you added these columns, keep results to your area + active rows:
-  params.set("state", "eq.NJ");
-  params.set("county", "eq.Mercer");
-  params.set("is_active", "is.true");
+  // Only approved by default
+  if (approved === "true") p.set("approved", "is.true");
 
-  if (industry) params.set("industry", `eq.${industry}`);
-  if (minWage)  params.set("wage", `gte.${minWage}`);
-  if (location) params.set("location", `ilike.%${location}%`);
-  if (q)        params.set("or", `(title.ilike.%${q}%,company.ilike.%${q}%,industry.ilike.%${q}%,location.ilike.%${q}%)`);
+  if (industry) p.set("industry", `eq.${industry}`);
+  if (minWage)  p.set("wage", `gte.${minWage}`);
+  if (location) p.set("location", `ilike.%${location}%`);
+  if (q)        p.set("or", `(title.ilike.%${q}%,company.ilike.%${q}%,industry.ilike.%${q}%,location.ilike.%${q}%)`);
 
   try {
-    const r = await fetch(`${SUPABASE_URL}/rest/v1/jobs?${params.toString()}`, {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/jobs?${p.toString()}`, {
       headers: {
         apikey: SUPABASE_SERVICE_KEY,
         Authorization: `Bearer ${SUPABASE_SERVICE_KEY}`
@@ -41,7 +43,7 @@ export default async function handler(req, res) {
     if (!r.ok) throw new Error(await r.text());
     const rows = await r.json();
 
-    // Edge cache for 5 minutes to keep it snappy
+    // Cache at edge 5 mins
     res.setHeader('Cache-Control', 's-maxage=300, stale-while-revalidate=60');
     res.status(200).json({ jobs: rows });
   } catch (e) {
