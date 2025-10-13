@@ -1,144 +1,71 @@
-/**
- * @api {get} /api/fetch-jobs Get Job Listings from Adzuna
- * @apiName FetchJobs
- * @apiGroup Jobs
- * @apiVersion 1.0.0
- *
- * @apiParam {String} [q]       Search query (keywords).
- * @apiParam {String} [where]   Location to search within.
- * @apiParam {Number} [days=3]  Max age of job postings in days (1-14).
- * @apiParam {Number} [limit=20] Number of results to return (1-50).
- *
- * @apiSuccess {Object} meta    Metadata about the request.
- * @apiSuccess {Object[]} jobs  An array of job objects.
- *
- * @apiDescription This endpoint acts as a proxy to the Adzuna API,
- * fetching job listings with sensible defaults for the Mercer County area.
- * It includes a lightweight in-memory cache to reduce redundant API calls.
- */
-
-// A simple in-memory cache to avoid spamming the Adzuna API for identical requests.
-const cache = new Map();
-
-// Helper to calculate a human-readable "posted ago" string.
-function timeAgo(dateString) {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  const seconds = Math.floor((new Date() - date) / 1000);
-  let interval = seconds / 31536000;
-  if (interval > 1) return Math.floor(interval) + " years ago";
-  interval = seconds / 2592000;
-  if (interval > 1) return Math.floor(interval) + " months ago";
-  interval = seconds / 86400;
-  if (interval > 1) return Math.floor(interval) + " days ago";
-  interval = seconds / 3600;
-  if (interval > 1) return Math.floor(interval) + " hours ago";
-  interval = seconds / 60;
-  if (interval > 1) return Math.floor(interval) + " minutes ago";
-  return Math.floor(seconds) + " seconds ago";
-}
-
+// /api/fetch-jobs
 
 export default async function handler(req, res) {
-  // --- Standard Headers & Options Request Handling ---
+  // Set CORS headers to allow requests from any origin
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('X-Powered-By', 'Awesome Job Finder 9000'); // A little flair!
+
+  // Handle preflight OPTIONS request
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
-
-  // --- API Key Validation ---
-  const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
+  
+  const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
+  const ADZUNA_API_KEY = process.env.ADZUNA_API_KEY;
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    console.error('CRITICAL: Adzuna API credentials are not configured in environment variables.');
-    return res.status(500).json({ error: 'Server configuration error: API credentials missing.' });
+    return res.status(500).json({ error: 'API credentials are not configured.' });
   }
 
-  // --- Sensible Defaults & Parameter Sanitization ---
-  const defaults = {
-    q: '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail',
-    where: 'Mercer County, New Jersey',
-    days: '3',
-    limit: '20',
-  };
+  const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
+  const DEFAULT_WHERE = 'Mercer County, New Jersey';
+  const DEFAULT_DAYS = '7';
+  const DEFAULT_LIMIT = '100';
+  const PAGE = '1';
   const country = 'us';
-  const page = '1';
 
-  const q = (req.query.q || defaults.q).toString();
-  const where = (req.query.where || defaults.where).toString();
-  // Ensure 'days' and 'limit' are within reasonable, valid bounds.
-  const days = String(Math.max(1, Math.min(14, parseInt(req.query.days || defaults.days, 10))));
-  const limit = String(Math.max(1, Math.min(50, parseInt(req.query.limit || defaults.limit, 10)))); // Adzuna max is 50
+  const q = (req.query.q || DEFAULT_Q).toString();
+  const where = (req.query.where || DEFAULT_WHERE).toString();
+  const days = String(Math.max(1, Math.min(14, parseInt(req.query.days || DEFAULT_DAYS, 10) || 7)));
+  const limit = String(Math.max(1, Math.min(100, parseInt(req.query.limit || DEFAULT_LIMIT, 10) || 100)));
 
-  // --- Build Adzuna API Request URL ---
-  const adzunaParams = new URLSearchParams({
-    app_id: ADZUNA_APP_ID,
-    app_key: ADZUNA_API_KEY,
-    results_per_page: limit,
-    what: q,
-    where: where,
-    max_days_old: days,
-    sort_by: 'date',
-  });
-  const adzunaUrl = `https://api.adzuna.com/v1/api/jobs/${country}/search/${page}?${adzunaParams.toString()}`;
+  const url = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/search/${PAGE}`);
+  url.searchParams.set('app_id', ADZUNA_APP_ID);
+  url.searchParams.set('app_key', ADZUNA_API_KEY);
+  url.searchParams.set('results_per_page', limit);
+  url.searchParams.set('what', q);
+  url.searchParams.set('where', where);
+  url.searchParams.set('max_days_old', days);
+  url.searchParams.set('sort_by', 'date');
 
-  // --- Caching Logic ---
-  const cacheKey = adzunaUrl;
-  const cached = cache.get(cacheKey);
-  if (cached && (Date.now() - cached.timestamp < 300000)) { // 5 minute cache
-    console.log(`CACHE HIT: Serving from cache for key: ${cacheKey}`);
-    return res.status(200).json(cached.data);
-  }
-  console.log(`CACHE MISS: Fetching fresh data for key: ${cacheKey}`);
-
-  // --- Main API Fetch Logic ---
   try {
-    const response = await fetch(adzunaUrl);
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`Adzuna API Error (Status: ${response.status}): ${errorText}`);
-      throw new Error(`Adzuna API responded with status ${response.status}.`);
+    const r = await fetch(url.toString());
+    if (!r.ok) {
+      const text = await r.text();
+      throw new Error(`Adzuna API Error: ${r.status} ${text}`);
     }
-    const data = await response.json();
+    const data = await r.json();
 
-    // --- Data Normalization & Enrichment ---
-    // Transform the raw Adzuna response into a clean, consistent format for our front-end.
     const jobs = (data.results || []).map(j => ({
       id: j.id,
-      title: j.title || 'No Title Provided',
-      company: j.company?.display_name || 'Company Not Listed',
+      title: j.title || '',
+      company: j.company?.display_name || '—',
       industry: j.category?.label || 'Uncategorized',
-      location: j.location?.display_name || 'Location Not Specified',
-      description: j.description || 'No description available.',
-      created: j.created || null,
-      posted_ago: timeAgo(j.created), // Add our human-readable time
-      apply_link: j.redirect_url,
-      wage: null, // Adzuna wage data is unreliable; handle on front-end if needed.
+      location: j.location?.display_name || '—',
+      description: j.description || '',
+      created: j.created || '',
+      salary_min: j.salary_min ?? null,
+      salary_max: j.salary_max ?? null,
+      redirect_url: j.redirect_url,
     }));
 
-    const responsePayload = {
-      meta: {
-        source: 'Adzuna API (Live)',
-        query: { what: q, where, days: Number(days), limit: Number(limit) },
-        count: jobs.length,
-      },
+    return res.status(200).json({
+      meta: { where, days: Number(days), limit: Number(limit), count: jobs.length, query: q },
       jobs,
-    };
-
-    // Store the successful response in the cache before sending it.
-    cache.set(cacheKey, { timestamp: Date.now(), data: responsePayload });
-
-    return res.status(200).json(responsePayload);
-
-  } catch (error) {
-    console.error('FATAL: Failed to fetch and process jobs.', {
-      query: req.query,
-      errorMessage: error.message,
     });
-    return res.status(500).json({ error: 'An error occurred while fetching jobs.' });
+  } catch (err) {
+    console.error('Failed to fetch jobs:', err);
+    return res.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
   }
 }
 
