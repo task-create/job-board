@@ -1,10 +1,10 @@
-// /api/fetch-jobs.js
-// This function fetches jobs from Adzuna.
+// /api/partnership-analyzer.js
+// This function uses Gemini to analyze a potential employer partner.
 
 export default async function handler(req, res) {
   // Set CORS headers for browser access
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
   // Handle the browser's preflight OPTIONS request
@@ -12,53 +12,48 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  if (req.method !== 'GET') {
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
 
-  const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
-  if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return res.status(500).json({ error: 'API credentials are not configured.' });
+  const { GEMINI_API_KEY } = process.env;
+  if (!GEMINI_API_KEY) {
+    return res.status(500).json({ error: 'Gemini API key is not configured.' });
   }
 
-  const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
-  const DEFAULT_WHERE = 'Mercer County, New Jersey';
-  
   try {
-    const url = new URL(`https://api.adzuna.com/v1/api/jobs/us/search/1`);
-    url.searchParams.set('app_id', ADZUNA_APP_ID);
-    url.searchParams.set('app_key', ADZUNA_API_KEY);
-    url.searchParams.set('results_per_page', req.query.limit || '100');
-    url.searchParams.set('what', req.query.q || DEFAULT_Q);
-    url.searchParams.set('where', req.query.where || DEFAULT_WHERE);
-    url.searchParams.set('max_days_old', req.query.days || '7');
-    url.searchParams.set('sort_by', 'date');
+    const { companyName, companyLocations } = req.body;
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${GEMINI_API_KEY}`;
+    
+    const emailExample = `Hello Hiring Team,\n\nI’m Sean from TASK Employment Services. We prepare job-ready candidates (servsafe, SORA, forklift, and soft skills) and can pre-screen for reliability, schedule fit, and transit access.\n\nIf you’re open, I’d love to share a 10–minute overview and send a short list of candidates for your current roles.\n\nBest,\nSean Ford\nTASK Employment Services`;
+    const prompt = `You are a partnership research assistant for TASK, a non-profit focused on workforce development in Mercer County, NJ. Your task is to analyze a potential employer partner. Company Name: "${companyName}". Known Hiring Locations: "${companyLocations}". Perform these actions: 1. Search the web for this company to find potential contacts (HR, Talent Acquisition) and summarize its mission/values. 2. Rate its partnership potential as "High", "Medium", or "Low" with a brief justification. 3. Draft a personalized outreach email based on the provided example. Return a single JSON object with this structure: { "contacts": [{ "name": "string or null", "title": "string or null" }], "companyValues": "string", "partnershipRating": "string", "ratingJustification": "string", "draftEmail": "string" } Email Example for style: ${emailExample}`;
 
-    const r = await fetch(url.toString());
-    if (!r.ok) {
-      const text = await r.text();
-      throw new Error(`Adzuna API Error: ${r.status} ${text}`);
+    const payload = {
+        contents: [{ parts: [{ text: prompt }] }],
+        tools: [{ "google_search": {} }],
+        generationConfig: { responseMimeType: "application/json" },
+    };
+
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Gemini API Error: ${errorText}`);
     }
-    const data = await r.json();
 
-    const jobs = (data.results || []).map(j => ({
-      id: j.id,
-      title: j.title || '',
-      company: j.company?.display_name || '—',
-      industry: j.category?.label || 'Uncategorized',
-      location: j.location?.display_name || '—',
-      description: j.description || '',
-      created: j.created || '',
-      salary_min: j.salary_min ?? null,
-      salary_max: j.salary_max ?? null,
-      redirect_url: j.redirect_url
-    }));
+    const result = await response.json();
+    const jsonText = result.candidates[0].content.parts[0].text;
+    const data = JSON.parse(jsonText);
+    
+    return res.status(200).json(data);
 
-    return res.status(200).json({ meta: data.__CLASS__, jobs });
-
-  } catch (err) {
-    console.error('Failed to fetch jobs:', err);
-    return res.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
+  } catch (error) {
+    console.error('Partnership Analyzer error:', error);
+    return res.status(500).json({ error: 'Failed to analyze partnership.' });
   }
 }
 
