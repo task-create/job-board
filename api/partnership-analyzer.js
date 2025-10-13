@@ -39,14 +39,14 @@ module.exports = async function handler(req, res) {
 
 Hello Hiring Team,
 
-I’m Sean from TASK Employment Services. We prepare job-ready candidates (ServSafe, SORA, forklift, soft skills) and can pre-screen for reliability, schedule fit, and transit access.
+I’m [YOUR NAME] from TASK Employment Services. We prepare job-ready candidates (ServSafe, SORA, forklift, soft skills) and can pre-screen for reliability, schedule fit, and transit access.
 
 If you’re open, I’d love to share a 10–minute overview and send a short list of candidates for ${cName || 'your'} current roles.
 
 Best,
-Sean Ford
+[PHONE NUMBER]
 TASK Employment Services
-(609) 577-0785`
+
     };
 
     // Simulate compute time to be realistic but safe
