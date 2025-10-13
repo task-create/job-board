@@ -1,6 +1,12 @@
 // /api/fetch-jobs.js
+// This function fetches jobs from Adzuna and includes a cache to improve performance.
+
+// In-memory cache to store recent results.
+const cache = new Map();
+const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+
 export default async function handler(req, res) {
-  // Set CORS headers for browser access (preflight and actual)
+  // Set CORS headers for browser access
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -10,21 +16,25 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
-  // Only allow GET for the actual request
   if (req.method !== 'GET') {
-    return res.status(405).json({ error: 'Method Not Allowed' });
+    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
   }
+
+  // --- Caching Logic ---
+  const cacheKey = req.url; // Use the full request URL as the cache key
+  if (cache.has(cacheKey)) {
+    const cached = cache.get(cacheKey);
+    // Check if the cached data is still fresh
+    if (Date.now() - cached.timestamp < CACHE_DURATION_MS) {
+      // Return the cached data instantly
+      return res.status(200).json(cached.data);
+    }
+  }
+  // --- End Caching Logic ---
 
   const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    console.error('Adzuna API credentials are not configured on the server.');
-    // Return a 200 with a user-friendly error payload instead of crashing
-    return res.status(200).json({ 
-        ok: false,
-        message: 'Job service is not configured correctly. Please contact support.',
-        meta: {},
-        jobs: [] 
-    });
+    return res.status(500).json({ ok: false, error: 'API credentials are not configured on the server.' });
   }
 
   const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
@@ -60,7 +70,7 @@ export default async function handler(req, res) {
       redirect_url: j.redirect_url
     }));
 
-    return res.status(200).json({ 
+    const responseData = { 
         ok: true,
         meta: { 
             query: req.query.q || DEFAULT_Q, 
@@ -68,17 +78,20 @@ export default async function handler(req, res) {
             count: jobs.length 
         }, 
         jobs 
+    };
+
+    // Store the new result in the cache before sending it
+    cache.set(cacheKey, {
+        timestamp: Date.now(),
+        data: responseData
     });
+
+    return res.status(200).json(responseData);
 
   } catch (err) {
     console.error('Failed to fetch jobs from Adzuna:', err);
-    // Instead of 500, send 200 with a safe fallback payload
-    return res.status(200).json({ 
-        ok: false,
-        message: 'Could not connect to the job service. Please try again later.',
-        meta: {},
-        jobs: []
-    });
+    // Don't crash the server, return a graceful error response
+    return res.status(500).json({ ok: false, error: 'Failed to fetch jobs from Adzuna.' });
   }
 }
 
