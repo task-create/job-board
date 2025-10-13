@@ -1,8 +1,6 @@
 // /api/fetch-jobs.js
-// This function fetches jobs from Adzuna.
-
 export default async function handler(req, res) {
-  // Set CORS headers for browser access
+  // Set CORS headers for browser access (preflight and actual)
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -12,6 +10,7 @@ export default async function handler(req, res) {
     return res.status(204).end();
   }
 
+  // Only allow GET for the actual request
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method Not Allowed' });
   }
@@ -31,7 +30,6 @@ export default async function handler(req, res) {
     url.searchParams.set('results_per_page', req.query.limit || '100');
     url.searchParams.set('what', req.query.q || DEFAULT_Q);
     url.searchParams.set('where', req.query.where || DEFAULT_WHERE);
-    // Corrected the typo in the line below (was search_params)
     url.searchParams.set('max_days_old', req.query.days || '7');
     url.searchParams.set('sort_by', 'date');
 
