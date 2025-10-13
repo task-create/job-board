@@ -97,13 +97,13 @@
                 <p class="text-sm text-slate-500">Live, local jobs for TASK clients. Use the filters to find your match. <span class="font-bold">(Location Tip: Check the 🚌 badge!)</span></p>
 
                 <!-- Filter bar -->
-                <div class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div class="flex flex-col md:flex-row md:items-end gap-3">
-                        <div class="flex-grow">
+                <div id="filter-bar" class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+                        <div class="md:col-span-2 lg:col-span-1">
                             <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
                             <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
                         </div>
-                        <div class="flex-grow">
+                        <div>
                             <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
                             <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
                                 <option value="">All of Mercer County</option>
@@ -117,7 +117,7 @@
                                 <option>Robbinsville</option>
                             </select>
                         </div>
-                         <div class="flex-grow">
+                         <div>
                             <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
                             <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
                                 <option value="">All Industries</option>
@@ -128,13 +128,19 @@
                                 <option>Hospitality & Catering</option>
                             </select>
                         </div>
-                         <div class="w-full md:w-32">
+                         <div>
                             <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
                             <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
                         </div>
-                        <button id="applyFilters" class="flex-shrink-0 w-full md:w-auto bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
-                            Find
-                        </button>
+                        <div class="flex items-center justify-between gap-4">
+                            <div class="flex items-center">
+                                <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                                <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
+                            </div>
+                            <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
+                                Find
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -155,19 +161,7 @@
            
             <!-- Job Search View -->
             <div id="job-search-view">
-                <section id="visuals-container" class="mb-8 p-4 bg-white border border-slate-200 rounded-xl hidden">
-                    <h2 class="text-lg font-bold text-slate-800 mb-4">Search Summary</h2>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                        <div>
-                            <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Industry</h3>
-                            <canvas id="industryChart"></canvas>
-                        </div>
-                        <div>
-                             <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Pay Rate</h3>
-                            <canvas id="wageChart"></canvas>
-                        </div>
-                    </div>
-                </section>
+                <section id="visuals-container" class="mb-8 p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
                 <section id="jobs-container" class="space-y-4"></section>
             </div>
 
@@ -189,8 +183,9 @@
                     <p class="text-sm text-slate-500"></p>
                 </div>
                 <div class="space-y-3">
-                     <a id="googleMapsLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition">Open in Google Maps (Transit)</a>
-                     <a href="https://www.njtransit.com/trip-planner-to" target="_blank" rel="noopener" class="block w-full text-center bg-gray-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-700 transition">Use NJ Transit Trip Planner</a>
+                     <a id="googleMapsLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition">Plan Transit Route</a>
+                     <a id="streetViewLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700 transition">View Street-Level Map</a>
+                     <a href="https://www.njtransit.com/trip-planner-to" target="_blank" rel="noopener" class="block w-full text-center bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition">Use NJ Transit Trip Planner</a>
                 </div>
                 <div class="mt-6 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
                     <h4 class="font-bold mb-1">Understanding Bus Zones & Fares:</h4>
@@ -201,23 +196,19 @@
         <div id="assistantModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xl">
                 <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ Job Assistant</h2>
+                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ Job Insights</h2>
                     <button id="closeAssistantModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
                 </div>
-                <div id="assistantContent">
-                    <!-- Gemini content will be injected here -->
-                </div>
+                <div id="assistantContent"></div>
             </div>
         </div>
         <div id="partnershipModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
+             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
                 <div class="flex justify-between items-center mb-4">
                     <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤝 Partnership Analysis</h2>
                     <button id="closePartnershipModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
                 </div>
-                <div id="partnershipContent">
-                    <!-- Partnership content will be injected here -->
-                </div>
+                <div id="partnershipContent"></div>
             </div>
         </div>
 
@@ -237,27 +228,30 @@
         const locationFilter = document.getElementById('locationFilter');
         const industryInput = document.getElementById('industry');
         const wageInput = document.getElementById('wage');
+        const entryLevelCheckbox = document.getElementById('entryLevel');
         const applyBtn = document.getElementById('applyFilters');
         const visualsContainer = document.getElementById('visuals-container');
+        const filterBar = document.getElementById('filter-bar');
         
-        // Tabs
         const jobSearchTab = document.getElementById('job-search-tab');
         const employerDiscoveryTab = document.getElementById('employer-discovery-tab');
         const jobSearchContainer = document.getElementById('job-search-view');
         const employerDiscoveryContainer = document.getElementById('employer-discovery-view');
 
-        // Modals
         const routeModal = document.getElementById('routeModal');
-        const closeRouteModalBtn = document.getElementById('closeRouteModalBtn');
+        const closeRouteModalBtn = routeModal.querySelector('button');
         const modalJobInfo = document.getElementById('modal-job-info');
         const googleMapsLink = document.getElementById('googleMapsLink');
-        const assistantModal = document.getElementById('assistantModal');
-        const closeAssistantModalBtn = document.getElementById('closeAssistantModalBtn');
-        const assistantContent = document.getElementById('assistantContent');
-        const partnershipModal = document.getElementById('partnershipModal');
-        const closePartnershipModalBtn = document.getElementById('closePartnershipModalBtn');
-        const partnershipContent = document.getElementById('partnershipContent');
+        const streetViewLink = document.getElementById('streetViewLink');
         
+        const assistantModal = document.getElementById('assistantModal');
+        const closeAssistantModalBtn = assistantModal.querySelector('button');
+        const assistantContent = document.getElementById('assistantContent');
+        
+        const partnershipModal = document.getElementById('partnershipModal');
+        const closePartnershipModalBtn = partnershipModal.querySelector('button');
+        const partnershipContent = document.getElementById('partnershipContent');
+
         let industryChartInstance, wageChartInstance;
         let activeTab = 'jobs';
         let allJobs = [];
@@ -278,6 +272,9 @@
         document.addEventListener('DOMContentLoaded', () => loadJobs(true));
         jobSearchTab.addEventListener('click', () => switchTab('jobs'));
         employerDiscoveryTab.addEventListener('click', () => switchTab('employers'));
+        filterBar.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') loadJobs(false);
+        });
         closeRouteModalBtn.addEventListener('click', hideRouteModal);
         routeModal.addEventListener('click', (e) => { if (e.target === routeModal) hideRouteModal(); });
         closeAssistantModalBtn.addEventListener('click', hideAssistantModal);
@@ -325,7 +322,7 @@
             }
             return { color: 'yellow', text: 'Potential Match', tooltip: 'This job meets some positive criteria. Review the details.' };
         };
-
+        
         const formatSalary = (job) => {
             if (job.salary_min != null && job.salary_max != null) {
                 return `$${job.salary_min.toFixed(2)} - $${job.salary_max.toFixed(2)}`;
@@ -338,11 +335,13 @@
             }
             return 'Salary not listed';
         };
+
+        const streetViewUrl = (destination) => `https://www.google.com/maps?q&layer=c&cbll=${encodeURIComponent(destination)}`;
         
         function showRouteModal(job) {
-            modalJobInfo.children[0].textContent = job.title;
-            modalJobInfo.children[1].textContent = job.location;
+            modalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
             googleMapsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(TASK_ADDR)}&destination=${encodeURIComponent(job.location || '')}&travelmode=transit`;
+            streetViewLink.href = streetViewUrl(job.location);
             routeModal.classList.remove('hidden');
             setTimeout(() => routeModal.classList.remove('opacity-0'), 10);
         }
@@ -362,49 +361,6 @@
             setTimeout(() => assistantModal.classList.add('hidden'), 300);
         }
         
-        async function handleApiError(response) {
-            const text = await response.text();
-            let msg = `Request failed with status ${response.status}`;
-            try { 
-                msg = JSON.parse(text).error || msg; 
-            } catch (e) {
-                msg += `. Server responded with: ${text}`;
-            }
-            throw new Error(msg);
-        }
-
-        async function getJobAssistantInsights(job) {
-            assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader"></div></div>`;
-            showAssistantModal();
-
-            try {
-                const url = `${API_BASE_URL}/api/job-assistant`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ title: job.title, description: job.description })
-                });
-
-                if (!response.ok) await handleApiError(response);
-                
-                const data = await response.json();
-                
-                const summaryHtml = '<ul class="space-y-2 list-disc list-inside text-slate-700">' + data.summary.map(item => `<li class="text-sm">${escapeHtml(item)}</li>`).join('') + '</ul>';
-                const questionsHtml = '<ol class="space-y-2 list-decimal list-inside text-slate-700">' + data.interviewQuestions.map(item => `<li class="text-sm font-medium">${escapeHtml(item)}</li>`).join('') + '</ol>';
-
-                assistantContent.innerHTML = `
-                    <div class="space-y-6">
-                        <div><h3 class="font-bold text-slate-800 mb-2">Quick Summary</h3>${summaryHtml}</div>
-                        <div><h3 class="font-bold text-slate-800 mb-2">Practice Interview Questions</h3>${questionsHtml}</div>
-                    </div>`;
-
-            } catch (error) {
-                console.error("Job Assistant call failed:", error);
-                assistantContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not get insights.</h3><p class="text-sm mt-1">${escapeHtml(error.message)}</p></div>`;
-            }
-        }
-        
         function showPartnershipModal() {
             partnershipModal.classList.remove('hidden');
             setTimeout(() => partnershipModal.classList.remove('opacity-0'), 10);
@@ -413,6 +369,52 @@
         function hidePartnershipModal() {
             partnershipModal.classList.add('opacity-0');
             setTimeout(() => partnershipModal.classList.add('hidden'), 300);
+        }
+        
+        async function handleApiError(response) {
+            const text = await response.text();
+            let msg = `Request failed: ${response.status} ${response.statusText}`;
+            try {
+                const json = JSON.parse(text);
+                msg = json.error || json.message || msg;
+            } catch (e) {
+                msg += `. The server might be down or a configuration error occurred. Please check the Vercel deployment logs and ensure all API keys are set as environment variables.`;
+            }
+            throw new Error(msg);
+        }
+
+        async function getJobInsights(job) {
+            assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
+            showAssistantModal();
+
+            try {
+                const url = `${API_BASE_URL}/api/job-insights`;
+                const response = await fetch(url, {
+                    method: 'POST',
+                    mode: 'cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        jobTitle: job.title, 
+                        jobDescription: job.description 
+                    })
+                });
+                if (!response.ok) await handleApiError(response);
+                
+                const data = await response.json();
+                
+                const dayInTheLifeHtml = `<p class="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">${escapeHtml(data.dayInTheLife)}</p>`;
+                const skillsHtml = '<ul class="space-y-2 list-disc list-inside text-slate-700">' + data.keySkills.map(item => `<li class="text-sm font-medium">${escapeHtml(item)}</li>`).join('') + '</ul>';
+
+                assistantContent.innerHTML = `
+                    <div class="space-y-6">
+                        <div><h3 class="font-bold text-slate-800 mb-2">A Day on the Job</h3>${dayInTheLifeHtml}</div>
+                        <div><h3 class="font-bold text-slate-800 mb-2">Key Skills to Highlight</h3>${skillsHtml}</div>
+                    </div>`;
+
+            } catch (error) {
+                console.error("Job Insights call failed:", error);
+                assistantContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not get insights.</h3><p class="text-sm mt-1">${escapeHtml(error.message)}</p></div>`;
+            }
         }
 
         async function getPartnershipInsights(companyName, companyLocations) {
@@ -495,7 +497,19 @@
             visualsContainer.classList.add('hidden');
 
             const params = new URLSearchParams();
-            if (kwInput.value.trim()) params.set('q', kwInput.value.trim());
+            
+            let queryParts = [];
+            if (entryLevelCheckbox.checked) {
+                queryParts.push('entry level');
+            }
+            const keyword = kwInput.value.trim();
+            if (keyword) queryParts.push(keyword);
+            if (industryInput.value) queryParts.push(industryInput.value);
+
+            if(queryParts.length > 0) {
+                params.set('q', [...new Set(queryParts)].join(' '));
+            }
+
             const whereQuery = locationFilter.value ? `${locationFilter.value}, Mercer County, NJ` : 'Mercer County, NJ';
             params.set('where', whereQuery);
             params.set('days', '7');
@@ -505,25 +519,22 @@
 
             try {
                 const response = await fetch(url, { method: 'GET', mode: 'cors' });
+                if (!response.ok) await handleApiError(response);
                 
-                const raw = await response.text();
-                let data;
-                try { data = JSON.parse(raw); } catch { data = { ok: false, error: raw || 'Non-JSON response' }; }
-
-                if (!response.ok || data.ok === false) {
-                    const msg = data?.message || data?.error || `HTTP ${response.status}`;
-                    throw new Error(msg);
+                const data = await response.json();
+                
+                if (data.ok === false) { 
+                    throw new Error(data.message || 'The job API returned a fallback response.');
                 }
                 
                 const minWage = parseFloat(wageInput.value) || 0;
-                const selectedIndustry = industryInput.value;
                 
                 allJobs = data.jobs.filter(job => {
-                    const hasSalary = job.salary_min !== null;
-                    const avgSalary = (job.salary_min + job.salary_max) / 2;
-                    const wageMatch = !minWage || (hasSalary && avgSalary >= minWage);
-                    const industryMatch = !selectedIndustry || job.industry === selectedIndustry;
-                    return wageMatch && industryMatch;
+                    if (!minWage) return true;
+                    if (job.salary_min == null && job.salary_max == null) return true; 
+                    if (job.salary_max != null) return job.salary_max >= minWage;
+                    if (job.salary_min != null) return job.salary_min >= minWage;
+                    return false;
                 });
 
                 renderJobs(allJobs);
@@ -561,9 +572,23 @@
         
         function renderVisuals(jobs) {
             if (!jobs || jobs.length === 0) {
-                visualsContainer.classList.add('hidden'); return;
+                visualsContainer.innerHTML = '';
+                visualsContainer.classList.add('hidden');
+                return;
             }
             visualsContainer.classList.remove('hidden');
+            visualsContainer.innerHTML = `
+                <h2 class="text-lg font-bold text-slate-800 mb-4">Search Summary</h2>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div>
+                        <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Industry</h3>
+                        <canvas id="industryChart"></canvas>
+                    </div>
+                    <div>
+                         <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Pay Rate</h3>
+                        <canvas id="wageChart"></canvas>
+                    </div>
+                </div>`;
 
             const industryCounts = jobs.reduce((acc, job) => {
                 const industry = job.industry || 'Uncategorized';
@@ -580,7 +605,7 @@
             const wageBins = { '< $18': 0, '$18-$22': 0, '$22-$26': 0, '$26-$30': 0, '> $30': 0 };
             jobs.forEach(job => {
                 const avgSalary = (job.salary_min + job.salary_max) / 2;
-                if (!avgSalary) return;
+                if (isNaN(avgSalary)) return;
                 if (avgSalary < 18) wageBins['< $18']++;
                 else if (avgSalary < 22) wageBins['$18-$22']++;
                 else if (avgSalary < 26) wageBins['$22-$26']++;
@@ -627,19 +652,19 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="text-xs text-slate-400 font-semibold whitespace-nowrap">${escapeHtml(job.created.substring(0, 10))}</div>
+                        <div class="text-xs text-slate-400 font-semibold whitespace-nowrap">${job.created.substring(0, 10)}</div>
                     </div>
                     <p class="text-sm text-slate-600 mt-3 line-clamp-3">${escapeHtml(job.description)}</p>
                     <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
                         <div class="text-sm font-bold text-green-700">${formatSalary(job)}</div>
                         <div class="flex items-center gap-2">
                              <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition whitespace-nowrap">Plan Commute</button>
-                             <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition whitespace-nowrap">✨ Job Assistant</button>
+                             <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition whitespace-nowrap">✨ Job Insights</button>
                         </div>
                     </div>`;
                 
                 card.querySelector('.plan-commute-btn').addEventListener('click', () => showRouteModal(job));
-                card.querySelector('.job-assistant-btn').addEventListener('click', () => getJobAssistantInsights(job));
+                card.querySelector('.job-assistant-btn').addEventListener('click', () => getJobInsights(job));
                 jobsContainer.appendChild(card);
             });
         }
