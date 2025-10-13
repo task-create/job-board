@@ -1,5 +1,6 @@
-// GET /api/fetch-jobs
-// Optional: ?q=...&where=...&days=...&limit=20 (defaults set for your use case)
+// This is a serverless function (e.g., for Vercel or Netlify) that acts
+// as a live API endpoint to fetch jobs directly from Adzuna.
+// It can be called from your front-end at the URL: /api/fetch-jobs
 
 export default async function handler(req, res) {
   // CORS so the plain index.html can call this
@@ -58,11 +59,9 @@ export default async function handler(req, res) {
       industry: j.category?.label || 'Uncategorized',
       location: j.location?.display_name || '—',
       description: j.description || '',
-      created: j.created || j.created_at || '',
-      salary_min: j.salary_min ?? null,
-      salary_max: j.salary_max ?? null,
-      salary_is_predicted: j.salary_is_predicted ?? '0',
-      redirect_url: j.redirect_url
+      created: j.created || '',
+      apply_link: j.redirect_url, // Matching the field name the front-end expects
+      wage: null, // Adzuna doesn't provide this consistently, so we set it to null
     }));
 
     return res.status(200).json({
