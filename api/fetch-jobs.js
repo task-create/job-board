@@ -17,7 +17,14 @@ export default async function handler(req, res) {
 
   const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return res.status(500).json({ error: 'API credentials are not configured on the server.' });
+    console.error('Adzuna API credentials are not configured on the server.');
+    // Return a 200 with a user-friendly error payload instead of crashing
+    return res.status(200).json({ 
+        ok: false,
+        message: 'Job service is not configured correctly. Please contact support.',
+        meta: {},
+        jobs: [] 
+    });
   }
 
   const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
@@ -54,6 +61,7 @@ export default async function handler(req, res) {
     }));
 
     return res.status(200).json({ 
+        ok: true,
         meta: { 
             query: req.query.q || DEFAULT_Q, 
             where: req.query.where || DEFAULT_WHERE, 
@@ -64,7 +72,13 @@ export default async function handler(req, res) {
 
   } catch (err) {
     console.error('Failed to fetch jobs from Adzuna:', err);
-    return res.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
+    // Instead of 500, send 200 with a safe fallback payload
+    return res.status(200).json({ 
+        ok: false,
+        message: 'Could not connect to the job service. Please try again later.',
+        meta: {},
+        jobs: []
+    });
   }
 }
 
