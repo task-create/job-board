@@ -14,7 +14,7 @@ export default async function handler(req, res) {
   const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
   const ADZUNA_API_KEY = process.env.ADZUNA_API_KEY;
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return res.status(500).json({ error: 'API credentials are not configured.' });
+    return res.status(500).json({ error: 'Adzuna API credentials are not configured.' });
   }
 
   const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
