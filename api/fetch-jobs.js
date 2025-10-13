@@ -18,7 +18,7 @@ export default async function handler(req, res) {
 
   const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
   if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return res.status(500).json({ error: 'API credentials are not configured.' });
+    return res.status(500).json({ error: 'API credentials are not configured on the server.' });
   }
 
   const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
@@ -31,7 +31,8 @@ export default async function handler(req, res) {
     url.searchParams.set('results_per_page', req.query.limit || '100');
     url.searchParams.set('what', req.query.q || DEFAULT_Q);
     url.searchParams.set('where', req.query.where || DEFAULT_WHERE);
-    url.search_params.set('max_days_old', req.query.days || '7');
+    // Corrected the typo in the line below (was search_params)
+    url.searchParams.set('max_days_old', req.query.days || '7');
     url.searchParams.set('sort_by', 'date');
 
     const r = await fetch(url.toString());
@@ -54,10 +55,17 @@ export default async function handler(req, res) {
       redirect_url: j.redirect_url
     }));
 
-    return res.status(200).json({ meta: data.__CLASS__, jobs });
+    return res.status(200).json({ 
+        meta: { 
+            query: req.query.q || DEFAULT_Q, 
+            where: req.query.where || DEFAULT_WHERE, 
+            count: jobs.length 
+        }, 
+        jobs 
+    });
 
   } catch (err) {
-    console.error('Failed to fetch jobs:', err);
+    console.error('Failed to fetch jobs from Adzuna:', err);
     return res.status(500).json({ error: 'Failed to fetch jobs from Adzuna.' });
   }
 }
