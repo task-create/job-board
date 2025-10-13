@@ -98,12 +98,12 @@
 
                 <!-- Filter bar -->
                 <div class="mt-4 p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
-                        <div class="lg:col-span-2">
+                    <div class="flex flex-col md:flex-row md:items-end gap-3">
+                        <div class="flex-grow">
                             <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
                             <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
                         </div>
-                        <div>
+                        <div class="flex-grow">
                             <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
                             <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
                                 <option value="">All of Mercer County</option>
@@ -117,7 +117,7 @@
                                 <option>Robbinsville</option>
                             </select>
                         </div>
-                         <div>
+                         <div class="flex-grow">
                             <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
                             <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
                                 <option value="">All Industries</option>
@@ -128,11 +128,11 @@
                                 <option>Hospitality & Catering</option>
                             </select>
                         </div>
-                         <div>
+                         <div class="w-full md:w-32">
                             <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
                             <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
                         </div>
-                        <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
+                        <button id="applyFilters" class="flex-shrink-0 w-full md:w-auto bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
                             Find
                         </button>
                     </div>
@@ -324,6 +324,19 @@
                 return { color: 'red', text: 'Review Closely', tooltip: 'The listed wage is below the regional average. Ensure it meets your needs.' };
             }
             return { color: 'yellow', text: 'Potential Match', tooltip: 'This job meets some positive criteria. Review the details.' };
+        };
+
+        const formatSalary = (job) => {
+            if (job.salary_min != null && job.salary_max != null) {
+                return `$${job.salary_min.toFixed(2)} - $${job.salary_max.toFixed(2)}`;
+            }
+            if (job.salary_min != null) {
+                return `From $${job.salary_min.toFixed(2)}`;
+            }
+             if (job.salary_max != null) {
+                return `Up to $${job.salary_max.toFixed(2)}`;
+            }
+            return 'Salary not listed';
         };
         
         function showRouteModal(job) {
@@ -618,7 +631,7 @@
                     </div>
                     <p class="text-sm text-slate-600 mt-3 line-clamp-3">${escapeHtml(job.description)}</p>
                     <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
-                        <div class="text-sm font-bold text-green-700">${job.salary_min ? `$${job.salary_min.toFixed(2)} - $${job.salary_max.toFixed(2)}` : 'Salary not listed'}</div>
+                        <div class="text-sm font-bold text-green-700">${formatSalary(job)}</div>
                         <div class="flex items-center gap-2">
                              <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition whitespace-nowrap">Plan Commute</button>
                              <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition whitespace-nowrap">✨ Job Assistant</button>
