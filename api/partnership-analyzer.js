@@ -1,4 +1,6 @@
 // /api/partnership-analyzer.js
+// Vercel Node Serverless Function (CommonJS)
+
 async function readJsonBody(req) {
   if (req.body && typeof req.body === 'object') return req.body;
   const chunks = [];
@@ -8,54 +10,59 @@ async function readJsonBody(req) {
 }
 
 module.exports = async function handler(req, res) {
-  // CORS
+  // --- CORS headers (preflight + actual) ---
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   res.setHeader('Access-Control-Max-Age', '86400');
+
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method Not Allowed' });
 
-  const start = Date.now();
+  const t0 = Date.now();
+
   try {
     const { companyName = '', companyLocations = '' } = await readJsonBody(req);
+    const cName = String(companyName || '').trim();
+    const cLocs = String(companyLocations || '').trim();
 
-    // Input validation (avoid throwing later)
-    const cName = (companyName || '').toString().trim();
-    const cLocs = (companyLocations || '').toString().trim();
+    // ---- Stub logic (replace with real analysis if desired) ----
+    // You can call LLMs, scrape career pages, or query your DB here.
+    const partnershipRating = cName ? 'Medium' : 'Low';
+    const ratingJustification = cName
+      ? `Recent postings around ${cLocs || 'Mercer County'} suggest ${cName} may be a viable outreach target.`
+      : `Based on recent postings in ${cLocs || 'Mercer County'}, this employer category could be viable, but validation is recommended.`;
 
-    // TODO: plug real LLM / data calls here. For now, keep it deterministic.
-    const payload = {
-      partnershipRating: 'Medium',
-      ratingJustification: cName
-        ? `Recent activity and postings around ${cLocs || 'Mercer County'} suggest ${cName} is a viable outreach target.`
-        : `Based on recent postings in ${cLocs || 'Mercer County'}, this employer looks viable for outreach.`,
-      companyValues: cName
-        ? `${cName} emphasizes reliability, service, and shift coverage.`
-        : `Employer emphasizes reliability, service, and shift coverage.`,
-      contacts: [], // leave empty; your UI handles this
-      draftEmail:
-`Subject: Partnering to hire trained candidates in Mercer County
+    const companyValues = cName
+      ? `${cName} appears to emphasize reliability, service, and shift coverage.`
+      : `Employer emphasis typically includes reliability, service, and shift coverage.`;
+
+    // Neutral email draft — no personal info
+    const draftEmail = `Subject: Local hiring partnership inquiry
 
 Hello Hiring Team,
 
-I’m Sean from TASK Employment Services. We prepare job-ready candidates (ServSafe, SORA, forklift, soft skills) and can pre-screen for reliability, schedule fit, and transit access.
+We support jobseekers in Mercer County and can share pre-screened candidates for entry-level roles. We can also align on shift coverage, transit access, and basic certifications (e.g., food safety, SORA, forklift).
 
-If you’re open, I’d love to share a 10–minute overview and send a short list of candidates for ${cName || 'your'} current roles.
+If helpful, we can send a brief overview and a small candidate slate aligned to your current openings. Would a 10-minute intro be convenient this week?
 
-Best,
-Sean Ford
-TASK Employment Services
+Best regards`;
 
+    const payload = {
+      ok: true,
+      ms: Date.now() - t0,
+      partnershipRating,
+      ratingJustification,
+      companyValues,
+      contacts: [], // leave empty unless you have verified names
+      draftEmail
+    };
 
-    // Simulate compute time to be realistic but safe
-    await new Promise(r => setTimeout(r, 50));
-
-    res.status(200).json({ ok: true, ms: Date.now() - start, ...payload });
+    return res.status(200).json(payload);
   } catch (err) {
-    // NEVER throw raw errors to client; send a soft fallback instead of 500
+    // Graceful fallback (still 200)
     console.error('partnership-analyzer fatal:', err);
-    res.status(200).json({
+    return res.status(200).json({
       ok: false,
       note: 'fallback',
       message: 'Analyzer encountered an issue; returning a safe fallback.',
@@ -63,18 +70,15 @@ TASK Employment Services
       ratingJustification: 'Automatic fallback. Please try again.',
       companyValues: 'N/A',
       contacts: [],
-      draftEmail:
-`Subject: Quick intro — TASK candidates
+      draftEmail: `Subject: Local hiring partnership inquiry
 
 Hello Hiring Team,
 
-I’m Sean from TASK Employment Services. We support employers with pre-screened candidates for entry-level roles across Mercer County.
+We support jobseekers in Mercer County and can share pre-screened candidates for entry-level roles. We can also align on shift coverage, transit access, and basic certifications.
 
-Could we set up a brief intro call this week?
+If helpful, we can send a brief overview and a small candidate slate aligned to your current openings. Would a short intro this week be convenient?
 
-Best,
-Sean`
+Best regards`
     });
   }
 };
-
