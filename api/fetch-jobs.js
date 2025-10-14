@@ -1,97 +1,125 @@
 // /api/fetch-jobs.js
-// This function fetches jobs from Adzuna and includes a cache to improve performance.
+// This function fetches jobs from Adzuna using an optimized query list.
 
-// In-memory cache to store recent results.
+// In-memory cache store (simple Object Map)
 const cache = new Map();
-const CACHE_DURATION_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000; // Cache duration: 10 minutes
 
-export default async function handler(req, res) {
-  // Set CORS headers for browser access
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle the browser's preflight OPTIONS request
-  if (req.method === 'OPTIONS') {
-    return res.status(204).end();
-  }
-
-  if (req.method !== 'GET') {
-    return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
-  }
-
-  // --- Caching Logic ---
-  const cacheKey = req.url; // Use the full request URL as the cache key
-  if (cache.has(cacheKey)) {
-    const cached = cache.get(cacheKey);
-    // Check if the cached data is still fresh
-    if (Date.now() - cached.timestamp < CACHE_DURATION_MS) {
-      // Return the cached data instantly
-      return res.status(200).json(cached.data);
-    }
-  }
-  // --- End Caching Logic ---
-
-  const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
-  if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-    return res.status(500).json({ ok: false, error: 'API credentials are not configured on the server.' });
-  }
-
-  const DEFAULT_Q = '"entry level" OR warehouse OR healthcare OR manufacturing OR culinary OR retail';
-  const DEFAULT_WHERE = 'Mercer County, New Jersey';
-  
-  try {
-    const url = new URL(`https://api.adzuna.com/v1/api/jobs/us/search/1`);
-    url.searchParams.set('app_id', ADZUNA_APP_ID);
-    url.searchParams.set('app_key', ADZUNA_API_KEY);
-    url.searchParams.set('results_per_page', req.query.limit || '100');
-    url.searchParams.set('what', req.query.q || DEFAULT_Q);
-    url.searchParams.set('where', req.query.where || DEFAULT_WHERE);
-    url.searchParams.set('max_days_old', req.query.days || '7');
-    url.searchParams.set('sort_by', 'date');
-
-    const r = await fetch(url.toString());
-    if (!r.ok) {
-      const text = await r.text();
-      throw new Error(`Adzuna API Error: ${r.status} ${text}`);
-    }
-    const data = await r.json();
-
-    const jobs = (data.results || []).map(j => ({
-      id: j.id,
-      title: j.title || '',
-      company: j.company?.display_name || '—',
-      industry: j.category?.label || 'Uncategorized',
-      location: j.location?.display_name || '—',
-      description: j.description || '',
-      created: j.created || '',
-      salary_min: j.salary_min ?? null,
-      salary_max: j.salary_max ?? null,
-      redirect_url: j.redirect_url
-    }));
-
-    const responseData = { 
-        ok: true,
-        meta: { 
-            query: req.query.q || DEFAULT_Q, 
-            where: req.query.where || DEFAULT_WHERE, 
-            count: jobs.length 
-        }, 
-        jobs 
-    };
-
-    // Store the new result in the cache before sending it
-    cache.set(cacheKey, {
-        timestamp: Date.now(),
-        data: responseData
-    });
-
-    return res.status(200).json(responseData);
-
-  } catch (err) {
-    console.error('Failed to fetch jobs from Adzuna:', err);
-    // Don't crash the server, return a graceful error response
-    return res.status(500).json({ ok: false, error: 'Failed to fetch jobs from Adzuna.' });
-  }
+function generateCacheKey(query, location) {
+    return JSON.stringify({ query: query.toLowerCase(), location: location.toLowerCase() });
 }
 
+// Function to normalize job data to a consistent structure
+function normalizeJob(job, source) {
+    // Adzuna normalization
+    const id = `adzuna-${job.id}`;
+    return {
+        id,
+        title: job.title || 'Job Opening',
+        company: job.company?.display_name || 'Confidential',
+        location: job.location?.display_name || 'Mercer County, NJ',
+        description: job.description || 'No description provided.',
+        created: job.created || job.created_at || new Date().toISOString(),
+        salary_min: job.salary_min ?? null,
+        salary_max: job.salary_max ?? null,
+        redirect_url: job.redirect_url,
+        source: 'Adzuna'
+    };
+}
+
+// Function to call Adzuna API
+async function fetchFromAdzuna(q, where, limit, days, appId, apiKey) {
+    const url = new URL(`https://api.adzuna.com/v1/api/jobs/us/search/1`);
+    url.searchParams.set('app_id', appId);
+    url.searchParams.set('app_key', apiKey);
+    url.searchParams.set('results_per_page', limit);
+    url.searchParams.set('what', q);
+    url.searchParams.set('where', where);
+    url.searchParams.set('max_days_old', days);
+    url.searchParams.set('sort_by', 'date');
+
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Adzuna API Error: ${response.status} ${text}`);
+    }
+    const data = await response.json();
+    return (data.results || []).map(job => normalizeJob(job, 'adzuna'));
+}
+
+export default async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+    if (req.method === 'OPTIONS') return res.status(204).end();
+
+    if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
+
+
+    const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
+    
+    // --- OPTIMIZED DEFAULT QUERY FOR TASK NEEDS ---
+    // Targeted roles: Warehouse, Retail, Healthcare, Food Service, Maintenance, and stepping-stone roles.
+    const ENTRY_LEVEL_ROLES = 'warehouse OR retail OR "customer service" OR healthcare OR housekeeping OR cook OR "food service" OR culinary OR assembly OR manufacturing OR sanitation OR cleaner';
+    const NEXT_LEVEL_KEYWORDS = 'team lead OR supervisor OR coordinator OR shift lead OR senior associate OR specialized technician OR foreman';
+
+    const DEFAULT_Q = `(${ENTRY_LEVEL_ROLES}) OR (${NEXT_LEVEL_KEYWORDS})`;
+    const DEFAULT_WHERE = 'Mercer County, New Jersey';
+
+    const q = req.query.q || DEFAULT_Q;
+    const where = req.query.where || DEFAULT_WHERE;
+    const limit = req.query.limit || '100';
+    const days = req.query.days || '7';
+
+    const cacheKey = generateCacheKey(q, where);
+    const cachedEntry = cache.get(cacheKey);
+
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_TTL_MS)) {
+        console.log(`Cache HIT for: ${cacheKey}`);
+        return res.status(200).json({ ok: true, jobs: cachedEntry.jobs, source: 'Cache', meta: cachedEntry.meta });
+    }
+    console.log(`Cache MISS for: ${cacheKey}. Fetching live data...`);
+
+    let adzunaJobs = [];
+    
+    try {
+        // 1. Fetch from Adzuna (Required)
+        if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
+            throw new Error('Adzuna API keys are not configured on the server.');
+        }
+
+        adzunaJobs = await fetchFromAdzuna(q, where, limit, days, ADZUNA_APP_ID, ADZUNA_API_KEY);
+        
+        // 2. No second source integration needed (simpler solution)
+        const combinedJobs = adzunaJobs;
+        
+        if (combinedJobs.length === 0) {
+             return res.status(200).json({ 
+                ok: false, 
+                message: 'No recent jobs found matching your criteria. Try broadening your search.', 
+                jobs: [],
+                meta: { count: 0 }
+            });
+        }
+        
+        const responseData = {
+            ok: true,
+            jobs: combinedJobs,
+            meta: { 
+                count: combinedJobs.length,
+                source: 'Adzuna (Optimized)'
+            }
+        };
+
+        // 3. Cache the results
+        cache.set(cacheKey, { jobs: combinedJobs, timestamp: Date.now(), meta: responseData.meta });
+
+        return res.status(200).json(responseData);
+
+    } catch (err) {
+        console.error('FATAL Adzuna Fetch error:', err);
+        return res.status(500).json({ ok: false, error: 'Failed to fetch jobs from backend services. Check server logs.' });
+    }
+}
