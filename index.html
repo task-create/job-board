@@ -3,28 +3,19 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TASK Employment Services Dashboard</title>
+    <title>TASK Job Dashboard</title>
     <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ." />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
-        :root { --brand-color: #0ea5e9; }
+        :root { 
+            --brand-color: #0ea5e9; 
+        }
         body {
-            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
             background-color: #f8fafc;
+            color: #1e293b;
         }
-        .loader {
-            border: 4px solid rgba(0, 0, 0, 0.1);
-            border-top: 4px solid var(--brand-color);
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
+        
         #splash-screen, .modal {
             transition: opacity 0.5s ease-out;
         }
@@ -59,24 +50,23 @@
             visibility: visible;
             opacity: 1;
         }
+        
         .tab-btn {
             padding: 8px 16px;
-            border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            border: 2px solid transparent;
-        }
-        .tab-btn.active {
-            background-color: #e0f2fe;
-            color: #0c4a6e;
-        }
-        .tab-btn:not(.active) {
+            border-bottom: 3px solid transparent;
             color: #475569;
         }
+        .tab-btn.active {
+            color: #0ea5e9;
+            border-bottom-color: #0ea5e9;
+        }
+       
         #filter-container {
             transition: all 0.3s ease-in-out;
-            max-height: 500px; /* Set to a value larger than the content */
+            max-height: 500px;
             overflow: hidden;
         }
         #filter-container.hidden {
@@ -85,19 +75,55 @@
             padding-bottom: 0;
             margin-top: 0;
         }
+
+        /* Splash Screen Gradients */
+        #splash-screen {
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+        }
+        #splash-screen.theme-sunrise { background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fad0c4, #ffd1ff); }
+        #splash-screen.theme-day { background: linear-gradient(-45deg, #e0f2fe, #7dd3fc, #0ea5e9, #0369a1); }
+        #splash-screen.theme-sunset { background: linear-gradient(-45deg, #ff7e5f, #feb47b, #845ec2, #d65db1); }
+        #splash-screen.theme-night { background: linear-gradient(-45deg, #020617, #0f172a, #1e293b, #334155); }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        .loader {
+            border: 4px solid rgba(255, 255, 255, 0.2);
+            border-top: 4px solid #fff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Fade-in animations */
+        .animate-fade-in { animation: fadeIn 0.8s 0.2s ease-out forwards; opacity: 0; }
+        .animate-fade-in-delay-1 { animation: fadeIn 0.8s 0.4s ease-out forwards; opacity: 0; }
+        @keyframes fadeIn { to { opacity: 1; } }
     </style>
 </head>
-<body class="text-slate-800">
+<body>
 
     <!-- Splash Screen -->
-    <div id="splash-screen" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+    <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center">
         <div class="text-center">
-            <svg class="mx-auto h-12 w-auto text-sky-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <h1 class="mt-4 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">TASK Dashboard</h1>
-            <p class="mt-2 text-base text-slate-500">Your connection to local opportunities.</p>
-            <div class="loader mt-8 mx-auto"></div>
+            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl animate-fade-in" style="text-shadow: 0 2px 4px rgba(0,0,0,0.1);">TASK Job Dashboard</h1>
+            <p class="mt-2 text-lg text-sky-100 animate-fade-in">Your connection to local opportunities.</p>
+            <button id="start-btn" class="mt-8 animate-fade-in-delay-1 bg-white/20 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30">
+                Start Exploring
+            </button>
+            <div id="splash-loader" class="hidden mt-8 h-[54px] flex items-center justify-center">
+                <div class="loader"></div>
+            </div>
         </div>
     </div>
 
@@ -106,8 +132,8 @@
             <div class="max-w-6xl mx-auto px-4 py-4">
                 <div class="flex justify-between items-center">
                     <div>
-                        <h1 class="text-2xl font-bold text-slate-900">TASK Employment Services Dashboard</h1>
-                        <p class="text-sm text-slate-500">Live, local jobs for TASK clients. Use the filters to find your match.</p>
+                        <h1 class="text-2xl font-bold text-slate-900">TASK Job Dashboard</h1>
+                        <p class="text-sm text-slate-500">A live dashboard of local job openings and employer insights.</p>
                     </div>
                     <button id="toggle-filters-btn" class="flex-shrink-0 bg-slate-200 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition">
                         Hide Filters
@@ -124,7 +150,7 @@
                             </div>
                             <div>
                                 <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
-                                <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
+                                <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
                                     <option value="">All of Mercer County</option>
                                     <option>Trenton</option>
                                     <option>Hamilton</option>
@@ -138,7 +164,7 @@
                             </div>
                              <div>
                                 <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
-                                <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 bg-white">
+                                <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
                                     <option value="">All Industries</option>
                                     <option>Logistics & Warehouse</option>
                                     <option>Healthcare & Nursing</option>
@@ -190,7 +216,7 @@
                  <section id="employers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
             </div>
         </main>
-
+        
         <!-- Modals -->
         <div id="mapModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl">
@@ -241,14 +267,17 @@
             </div>
         </div>
 
+
         <footer class="text-center py-8">
-            <p class="text-xs text-slate-400">Transit link origin: TASK, 72 Escher St, Trenton, NJ 08609.</p>
+            <p class="text-xs text-slate-400">Transit link origin: TASK, 72 Escher St, Trenton, NJ 08609. (v1.0 Final)</p>
         </footer>
     </div>
 
     <script>
         // --- UI Elements ---
         const splashScreen = document.getElementById('splash-screen');
+        const startBtn = document.getElementById('start-btn');
+        const splashLoader = document.getElementById('splash-loader');
         const mainContent = document.getElementById('main-content');
         const jobsContainer = document.getElementById('jobs-container');
         const employersContainer = document.getElementById('employers-container');
@@ -303,9 +332,36 @@
         const GOOD_WAGE_THRESHOLD = 20;
         const OK_WAGE_THRESHOLD = 16;
 
+        // --- THEME LOGIC ---
+        function applySplashTheme() {
+            const hour = new Date().getHours();
+            let themeClass;
+            if (hour >= 5 && hour < 8) themeClass = 'theme-sunrise';
+            else if (hour >= 8 && hour < 17) themeClass = 'theme-day';
+            else if (hour >= 17 && hour < 20) themeClass = 'theme-sunset';
+            else themeClass = 'theme-night';
+            splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${themeClass}`;
+        }
+
         // --- Event Listeners ---
+        document.addEventListener('DOMContentLoaded', () => {
+            applySplashTheme();
+        });
+        
+        startBtn.addEventListener('click', () => {
+            startBtn.classList.add('hidden');
+            splashLoader.classList.remove('hidden');
+
+            const dataLoad = loadJobs(true);
+
+            dataLoad.finally(() => {
+                splashScreen.classList.add('opacity-0');
+                mainContent.classList.remove('opacity-0');
+                setTimeout(() => splashScreen.classList.add('hidden'), 500);
+            });
+        });
+
         applyBtn.addEventListener('click', () => loadJobs(false));
-        document.addEventListener('DOMContentLoaded', () => loadJobs(true));
         toggleFiltersBtn.addEventListener('click', () => {
             const isHidden = filterContainer.classList.toggle('hidden');
             toggleFiltersBtn.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
@@ -456,7 +512,7 @@
         }
 
         async function getJobInsights(job) {
-            assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
+            assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
             showAssistantModal();
 
             try {
@@ -490,7 +546,7 @@
         }
 
         async function getPartnershipInsights(companyName, companyLocations) {
-            partnershipContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader"></div><p class="ml-4 text-slate-500">Analyzing partnership potential...</p></div>`;
+            partnershipContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Analyzing partnership potential...</p></div>`;
             showPartnershipModal();
 
             try {
@@ -521,7 +577,6 @@
 
             partnershipContent.innerHTML = `
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <!-- Left Column: Analysis -->
                     <div class="space-y-4">
                         <div>
                             <h3 class="font-bold text-slate-800 mb-2">Partnership Rating</h3>
@@ -540,7 +595,6 @@
                             <p class="text-xs text-slate-400 mt-2">Disclaimer: AI-generated contacts. Please verify on LinkedIn or the company website.</p>
                         </div>
                     </div>
-                    <!-- Right Column: Draft Email -->
                     <div>
                         <h3 class="font-bold text-slate-800 mb-2">Draft Outreach Email</h3>
                         <textarea id="email-draft" class="w-full h-64 p-2 border border-slate-300 rounded-lg text-xs">${escapeHtml(data.draftEmail)}</textarea>
@@ -561,7 +615,7 @@
         // --- Core Application Logic ---
         async function loadJobs(isInitialLoad = false) {
             if (!isInitialLoad) {
-                 const placeholder = `<div class="flex flex-col items-center justify-center p-10 col-span-full"><div class="loader"></div><p class="mt-4 text-sm font-medium text-slate-500">Searching...</p></div>`;
+                 const placeholder = `<div class="flex flex-col items-center justify-center p-10 col-span-full"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="mt-4 text-sm font-medium text-slate-500">Searching...</p></div>`;
                  jobsContainer.innerHTML = placeholder;
                  employersContainer.innerHTML = placeholder;
             }
@@ -569,18 +623,13 @@
             visualsContainer.classList.add('hidden');
 
             const params = new URLSearchParams();
-            
             let queryParts = [];
-            if (entryLevelCheckbox.checked) {
-                queryParts.push('entry level');
-            }
+            if (entryLevelCheckbox.checked) queryParts.push('entry level');
             const keyword = kwInput.value.trim();
             if (keyword) queryParts.push(keyword);
             if (industryInput.value) queryParts.push(industryInput.value);
 
-            if(queryParts.length > 0) {
-                params.set('q', [...new Set(queryParts)].join(' '));
-            }
+            if(queryParts.length > 0) params.set('q', [...new Set(queryParts)].join(' '));
 
             const whereQuery = locationFilter.value ? `${locationFilter.value}, Mercer County, NJ` : 'Mercer County, NJ';
             params.set('where', whereQuery);
@@ -592,12 +641,9 @@
             try {
                 const response = await fetch(url, { method: 'GET', mode: 'cors' });
                 if (!response.ok) await handleApiError(response);
-                
                 const data = await response.json();
                 
-                if (data.ok === false) { 
-                    throw new Error(data.message || 'The job API returned a fallback response.');
-                }
+                if (data.ok === false) throw new Error(data.message || 'The job API returned a fallback response.');
                 
                 const minWage = parseFloat(wageInput.value) || 0;
                 
@@ -614,20 +660,13 @@
                 renderStats(allJobs);
                 renderVisuals(allJobs);
                 updateView();
-
             } catch (error) {
                 console.error("Failed to load:", error);
                 const errorHtml = `<div class="p-10 bg-red-50 text-red-700 rounded-xl text-center col-span-full"><h3 class="font-bold">Oops! Something went wrong.</h3><p class="text-sm mt-2">${escapeHtml(error.message)}</p></div>`;
                 jobsContainer.innerHTML = errorHtml;
                 employersContainer.innerHTML = errorHtml;
                 statsEl.textContent = 'Error';
-            } finally {
-                if (isInitialLoad) {
-                    splashScreen.classList.add('opacity-0');
-                    mainContent.classList.remove('opacity-0');
-                    setTimeout(() => splashScreen.classList.add('hidden'), 500);
-                }
-            }
+            } 
         }
 
         function renderStats(jobs) {
@@ -650,7 +689,7 @@
             }
             visualsContainer.classList.remove('hidden');
             visualsContainer.innerHTML = `
-                <h2 class="text-lg font-bold text-slate-800 mb-4">Search Summary</h2>
+                <h2 class="text-lg font-bold text-slate-800">Search Summary</h2>
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
                     <div>
                         <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Industry</h3>
@@ -671,7 +710,7 @@
             if (industryChartInstance) industryChartInstance.destroy();
             industryChartInstance = new Chart(document.getElementById('industryChart'), {
                 type: 'pie', data: { labels: Object.keys(industryCounts), datasets: [{ data: Object.values(industryCounts), backgroundColor: ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#fb923c'] }] },
-                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#475569', font: { size: 10 } } } } }
             });
 
             const wageBins = { '< $18': 0, '$18-$22': 0, '$22-$26': 0, '$26-$30': 0, '> $30': 0 };
@@ -688,7 +727,7 @@
             if (wageChartInstance) wageChartInstance.destroy();
             wageChartInstance = new Chart(document.getElementById('wageChart'), {
                 type: 'bar', data: { labels: Object.keys(wageBins), datasets: [{ label: 'Number of Jobs', data: Object.values(wageBins), backgroundColor: '#38bdf8' }] },
-                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { precision: 0 } } } }
+                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 } }, x: { ticks: { color: '#475569' } } } }
             });
         }
         
@@ -782,7 +821,7 @@
                 card.querySelector('.view-jobs-btn').addEventListener('click', () => {
                     kwInput.value = companyName;
                     switchTab('jobs');
-                    loadJobs();
+                    loadJobs(false);
                 });
                 card.querySelector('.analyze-partner-btn').addEventListener('click', () => getPartnershipInsights(companyName, locations.join(', ')));
                 employersContainer.appendChild(card);
