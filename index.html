@@ -7,17 +7,6 @@
     <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ." />
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script>
-        // Critical script to prevent theme flash on load
-        (function() {
-            const theme = localStorage.getItem('theme') || 'light';
-            if (theme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
-        })();
-    </script>
     <style>
         :root { 
             --brand-color: #0ea5e9; 
@@ -25,10 +14,6 @@
         body {
             background-color: #f8fafc;
             color: #1e293b;
-        }
-        .dark body {
-            background-color: #0f172a;
-            color: #e2e8f0;
         }
         
         #splash-screen, .modal {
@@ -66,7 +51,6 @@
             opacity: 1;
         }
         
-        /* New Active Tab Style */
         .tab-btn {
             padding: 8px 16px;
             font-weight: 600;
@@ -74,9 +58,6 @@
             transition: all 0.2s;
             border-bottom: 3px solid transparent;
             color: #475569;
-        }
-        .dark .tab-btn {
-             color: #94a3b8;
         }
         .tab-btn.active {
             color: #0ea5e9;
@@ -380,32 +361,9 @@
             splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${themeClass}`;
         }
 
-        function toggleTheme() {
-            // Re-enabling the toggle for dashboard light/dark mode only
-            const isCurrentlyDark = document.documentElement.classList.contains('dark');
-            if (isCurrentlyDark) {
-                document.documentElement.classList.remove('dark');
-            } else {
-                document.documentElement.classList.add('dark');
-            }
-            localStorage.setItem('theme', isCurrentlyDark ? 'light' : 'dark');
-            
-            // This is crucial for updating chart visuals when theme changes
-            if (allJobs.length > 0) {
-                renderVisuals(allJobs);
-            }
-        }
-
         // --- Event Listeners ---
         document.addEventListener('DOMContentLoaded', () => {
             applySplashTheme();
-            // This is the dashboard's theme toggle, setting initial state
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            if (savedTheme === 'dark') {
-                document.documentElement.classList.add('dark');
-            } else {
-                document.documentElement.classList.remove('dark');
-            }
         });
         
         startBtn.addEventListener('click', () => {
@@ -518,18 +476,11 @@
         // --- Helper & Modal Functions ---
         const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
         const isTransitFriendly = (location) => {
-            const TRANSIT_HUBS = [
-                'Trenton', 'Hamilton', 'Lawrence', 'Ewing', 'Princeton', 'West Windsor', 
-                'East Windsor', 'Robbinsville', 'Marketplace', 'Quaker Bridge', 'Nassau Park', 
-                'Transit Center', 'Sloan Ave', 'Route 1', 'Route 130', 'Broad St', 'State St'
-            ];
             if (!location) return false;
             const locLower = location.toLowerCase();
             return TRANSIT_HUBS.some(hub => locLower.includes(hub.toLowerCase()));
         };
         const getJobQuality = (job) => {
-            const GOOD_WAGE_THRESHOLD = 20;
-            const OK_WAGE_THRESHOLD = 16;
             const hasSalary = job.salary_min !== null;
             const avgSalary = hasSalary ? (job.salary_min + job.salary_max) / 2 : 0;
             const isTransit = isTransitFriendly(job.location);
@@ -912,7 +863,7 @@
 
         function renderEmployers(jobs = []) {
             if (jobs.length === 0) {
-                employersContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center col-span-full"><h3 class="font-bold text-slate-700">No employers found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
+                employersContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No employers found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
                 return;
             }
 
@@ -958,3 +909,4 @@
     </script>
 </body>
 </html>
+
