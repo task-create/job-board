@@ -1,15 +1,16 @@
 // /api/fetch-jobs.js
-// This function fetches jobs from Adzuna using an optimized query list.
+// This function fetches jobs from Adzuna and includes robust error handling for external API failures.
 
-// In-memory cache store (simple Object Map)
+const fetch = global.fetch || require('node-fetch');
+
+// In-memory cache store
 const cache = new Map();
-const CACHE_TTL_MS = 10 * 60 * 1000; // Cache duration: 10 minutes
+const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 function generateCacheKey(query, location) {
     return JSON.stringify({ query: query.toLowerCase(), location: location.toLowerCase() });
 }
 
-// Function to normalize job data to a consistent structure
 function normalizeJob(job) {
     return {
         id: `adzuna-${job.id}`,
@@ -26,7 +27,6 @@ function normalizeJob(job) {
     };
 }
 
-// Function to call Adzuna API
 async function fetchFromAdzuna(q, where, limit, days, appId, apiKey) {
     const url = new URL(`https://api.adzuna.com/v1/api/jobs/us/search/1`);
     url.searchParams.set('app_id', appId);
@@ -39,15 +39,16 @@ async function fetchFromAdzuna(q, where, limit, days, appId, apiKey) {
 
     const response = await fetch(url.toString());
     if (!response.ok) {
-        const text = await response.text();
-        throw new Error(`Adzuna API Error (${response.status}): ${text}`);
+        // This is the critical part - it captures Adzuna's HTML error page
+        const errorText = await response.text().catch(() => 'Failed to read error body.');
+        throw new Error(`Adzuna API returned a non-200 status (${response.status}). This is an issue with the external job service, not our server.`);
     }
     const data = await response.json();
     return (data.results || []).map(normalizeJob);
 }
 
 export default async function handler(req, res) {
-    // Set CORS headers
+    // CORS headers
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -58,7 +59,7 @@ export default async function handler(req, res) {
     const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
     
     if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-        return res.status(500).json({ ok: false, error: 'SERVER ERROR: Adzuna API keys are not configured. Please check Vercel Environment Variables.' });
+        return res.status(500).json({ ok: false, error: 'CONFIGURATION ERROR: Adzuna API keys are not configured on the Vercel server. Please check Environment Variables.' });
     }
     
     const url = new URL(req.url, 'http://localhost');
@@ -71,7 +72,7 @@ export default async function handler(req, res) {
     const cachedEntry = cache.get(cacheKey);
 
     if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_TTL_MS)) {
-        return res.status(200).json({ ok: true, jobs: cachedEntry.jobs, source: 'Cache', meta: cachedEntry.meta });
+        return res.status(200).json({ ok: true, jobs: cachedEntry.jobs, source: 'Cache' });
     }
 
     try {
@@ -91,8 +92,7 @@ export default async function handler(req, res) {
 
     } catch (err) {
         console.error('FATAL Adzuna Fetch error:', err);
-        // Always return a structured JSON error, never crash
-        return res.status(500).json({ ok: false, error: `Failed to fetch jobs from backend services. Reason: ${err.message}` });
+        return res.status(500).json({ ok: false, error: `Failed to fetch jobs from the backend. Reason: ${err.message}` });
     }
 }
 
