@@ -1,197 +1,98 @@
 // /api/fetch-jobs.js
-// Reads jobs from Supabase (primary) and Adzuna (optional secondary).
-// Returns a unified array shaped the way your UI expects.
-// CORS + OPTIONS + robust error handling.
+// This function fetches jobs from Adzuna using an optimized query list.
 
-const fetch = global.fetch || require('node-fetch');
+// In-memory cache store (simple Object Map)
+const cache = new Map();
+const CACHE_TTL_MS = 10 * 60 * 1000; // Cache duration: 10 minutes
 
-function okJson(res, obj, status = 200) {
-  res.status(status).json(obj);
+function generateCacheKey(query, location) {
+    return JSON.stringify({ query: query.toLowerCase(), location: location.toLowerCase() });
 }
 
-function cors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  res.setHeader('Access-Control-Max-Age', '86400');
+// Function to normalize job data to a consistent structure
+function normalizeJob(job) {
+    return {
+        id: `adzuna-${job.id}`,
+        title: job.title || 'Job Opening',
+        company: job.company?.display_name || 'Confidential',
+        location: job.location?.display_name || 'Mercer County, NJ',
+        description: job.description || 'No description provided.',
+        created: job.created || new Date().toISOString(),
+        salary_min: job.salary_min ?? null,
+        salary_max: job.salary_max ?? null,
+        redirect_url: job.redirect_url,
+        industry: job.category?.label || 'Uncategorized',
+        source: 'Adzuna'
+    };
 }
 
-function parseIntSafe(v, fallback) {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : fallback;
-}
+// Function to call Adzuna API
+async function fetchFromAdzuna(q, where, limit, days, appId, apiKey) {
+    const url = new URL(`https://api.adzuna.com/v1/api/jobs/us/search/1`);
+    url.searchParams.set('app_id', appId);
+    url.searchParams.set('app_key', apiKey);
+    url.searchParams.set('results_per_page', limit);
+    url.searchParams.set('what', q);
+    url.searchParams.set('where', where);
+    url.searchParams.set('max_days_old', days);
+    url.searchParams.set('sort_by', 'date');
 
-function daysAgoISO(days) {
-  const d = new Date();
-  d.setDate(d.getDate() - (Number.isFinite(days) ? days : 7));
-  return d.toISOString();
-}
-
-// Normalize records to your front-end shape
-function normJob(j) {
-  // Expecting fields your UI uses:
-  // title, description, company, location, industry, salary_min, salary_max, created, redirect_url
-  return {
-    title: j.title || 'Untitled',
-    description: j.description || '',
-    company: j.company || j.company_name || 'Unknown Company',
-    location: j.location || j.city || j.place || '',
-    industry: j.industry || j.category || null,
-    salary_min: typeof j.salary_min === 'number' ? j.salary_min
-              : (typeof j.salary_min === 'string' ? Number(j.salary_min) : null),
-    salary_max: typeof j.salary_max === 'number' ? j.salary_max
-              : (typeof j.salary_max === 'string' ? Number(j.salary_max) : null),
-    created: j.created || j.created_at || j.date || new Date().toISOString(),
-    redirect_url: j.redirect_url || j.url || j.apply_url || null
-  };
-}
-
-async function fetchSupabase({ url, anonKey, where, q, days, limit }) {
-  if (!url || !anonKey) {
-    return { ok: false, source: 'supabase', error: 'Missing SUPABASE_URL or SUPABASE_ANON_KEY', jobs: [] };
-  }
-
-  // Prefer a public view/table e.g. public.jobs (approved=true).
-  // Adjust table and filters to your schema.
-  const endpoint = `${url}/rest/v1/jobs`;
-  const sinceISO = daysAgoISO(days);
-
-  const params = new URLSearchParams();
-  // RLS-safe filters (postgrest)
-  params.set('select', 'title,description,company,location,industry,salary_min,salary_max,created,redirect_url,approved');
-  params.set('approved', 'eq.true');
-  params.set('created', `gte.${sinceISO}`);
-  if (q) {
-    // Simple ilike on title/description; adjust if you have FTS
-    params.set('or', `(title.ilike.*${q}*,description.ilike.*${q}*,company.ilike.*${q}*)`);
-  }
-  if (where) {
-    params.set('location', `ilike.*${where}*`);
-  }
-  params.set('order', 'created.desc');
-  params.set('limit', String(parseIntSafe(limit, 100)));
-
-  const resp = await fetch(`${endpoint}?${params.toString()}`, {
-    headers: {
-      'apikey': anonKey,
-      'Authorization': `Bearer ${anonKey}`,
-      'Content-Type': 'application/json'
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+        const text = await response.text();
+        throw new Error(`Adzuna API Error (${response.status}): ${text}`);
     }
-  });
-
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    return { ok: false, source: 'supabase', error: `HTTP ${resp.status}: ${text || 'Supabase error'}`, jobs: [] };
-  }
-
-  const rows = await resp.json().catch(() => []);
-  return { ok: true, source: 'supabase', jobs: rows.map(normJob) };
+    const data = await response.json();
+    return (data.results || []).map(normalizeJob);
 }
 
-async function fetchAdzuna({ appId, apiKey, where, q, days, limit }) {
-  if (!appId || !apiKey) {
-    return { ok: false, source: 'adzuna', error: 'Missing ADZUNA_APP_ID or ADZUNA_API_KEY', jobs: [] };
-  }
+export default async function handler(req, res) {
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
-  // US endpoint; adjust country if needed
-  const base = `https://api.adzuna.com/v1/api/jobs/us/search/1`;
-  const params = new URLSearchParams();
-  params.set('app_id', appId);
-  params.set('app_key', apiKey);
-  params.set('results_per_page', String(parseIntSafe(limit, 50)));
-  if (q) params.set('what', q);
-  if (where) params.set('where', where);
-  // Adzuna doesn’t have "days" param universally; some regions support "max_days_old"
-  if (days) params.set('max_days_old', String(parseIntSafe(days, 7)));
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'GET') return res.status(405).json({ ok: false, error: 'Method Not Allowed' });
 
-  const resp = await fetch(`${base}?${params.toString()}`);
-  if (!resp.ok) {
-    const text = await resp.text().catch(() => '');
-    return { ok: false, source: 'adzuna', error: `HTTP ${resp.status}: ${text || 'Adzuna error'}`, jobs: [] };
-  }
-
-  const data = await resp.json().catch(() => ({}));
-  const results = Array.isArray(data.results) ? data.results : [];
-  const mapped = results.map(r => normJob({
-    title: r.title,
-    description: r.description,
-    company: r.company?.display_name,
-    location: `${r.location?.area?.filter(Boolean).join(', ') || r.location?.display_name || ''}`,
-    industry: r.category?.label,
-    salary_min: r.salary_min ?? null,
-    salary_max: r.salary_max ?? null,
-    created: r.created ?? r.created_at,
-    redirect_url: r.redirect_url
-  }));
-
-  return { ok: true, source: 'adzuna', jobs: mapped };
-}
-
-module.exports = async function handler(req, res) {
-  cors(res);
-  if (req.method === 'OPTIONS') return res.status(204).end();
-  if (req.method !== 'GET') return okJson(res, { error: 'Method Not Allowed' }, 405);
-
-  const t0 = Date.now();
-
-  try {
-    const url = new URL(req.url, 'http://localhost'); // base isn’t used
+    const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
+    
+    if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
+        return res.status(500).json({ ok: false, error: 'SERVER ERROR: Adzuna API keys are not configured. Please check Vercel Environment Variables.' });
+    }
+    
+    const url = new URL(req.url, 'http://localhost');
     const q = (url.searchParams.get('q') || '').trim();
     const where = (url.searchParams.get('where') || '').trim();
-    const days = parseIntSafe(url.searchParams.get('days'), 7);
-    const limit = parseIntSafe(url.searchParams.get('limit'), 100);
+    const limit = url.searchParams.get('limit') || '100';
+    const days = url.searchParams.get('days') || '7';
 
-    // ENV
-    const SUPABASE_URL  = process.env.SUPABASE_URL;
-    const SUPABASE_ANON = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-    const ADZUNA_APP_ID = process.env.ADZUNA_APP_ID;
-    const ADZUNA_API_KEY= process.env.ADZUNA_API_KEY;
+    const cacheKey = generateCacheKey(q, where);
+    const cachedEntry = cache.get(cacheKey);
 
-    // Fetch in parallel; don’t fail the whole request if one source is down
-    const [sb, adz] = await Promise.allSettled([
-      fetchSupabase({ url: SUPABASE_URL, anonKey: SUPABASE_ANON, where, q, days, limit }),
-      fetchAdzuna({ appId: ADZUNA_APP_ID, apiKey: ADZUNA_API_KEY, where, q, days, limit: Math.min(limit, 50) })
-    ]);
+    if (cachedEntry && (Date.now() - cachedEntry.timestamp < CACHE_TTL_MS)) {
+        return res.status(200).json({ ok: true, jobs: cachedEntry.jobs, source: 'Cache', meta: cachedEntry.meta });
+    }
 
-    const supabaseRes = sb.status === 'fulfilled' ? sb.value : { ok: false, source: 'supabase', error: sb.reason?.message || 'Supabase fetch failed', jobs: [] };
-    const adzunaRes   = adz.status === 'fulfilled' ? adz.value : { ok: false, source: 'adzuna',   error: adz.reason?.message || 'Adzuna fetch failed', jobs: [] };
+    try {
+        const jobs = await fetchFromAdzuna(q, where, limit, days, ADZUNA_APP_ID, ADZUNA_API_KEY);
+        
+        if (jobs.length === 0) {
+             return res.status(200).json({ 
+                ok: false, 
+                message: 'No recent jobs found matching your criteria. Try broadening your search.', 
+                jobs: []
+            });
+        }
+        
+        const responseData = { ok: true, jobs };
+        cache.set(cacheKey, { jobs, timestamp: Date.now() });
+        return res.status(200).json(responseData);
 
-    // Merge + de-dupe by (title+company+location)
-    const merged = [...supabaseRes.jobs, ...adzunaRes.jobs];
-    const seen = new Set();
-    const deduped = merged.filter(j => {
-      const key = [j.title, j.company, j.location].map(s => (s || '').toLowerCase()).join('|');
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
+    } catch (err) {
+        console.error('FATAL Adzuna Fetch error:', err);
+        // Always return a structured JSON error, never crash
+        return res.status(500).json({ ok: false, error: `Failed to fetch jobs from backend services. Reason: ${err.message}` });
+    }
+}
 
-    // Optional: clamp final size
-    const finalJobs = deduped.slice(0, limit);
-
-    // Compose diagnostics so your UI can show partial source info if desired
-    const diag = {
-      supabase: { ok: !!supabaseRes.ok, count: supabaseRes.jobs.length, error: supabaseRes.ok ? null : supabaseRes.error },
-      adzuna:   { ok: !!adzunaRes.ok,   count: adzunaRes.jobs.length,   error: adzunaRes.ok ? null : adzunaRes.error }
-    };
-
-    // If both sources failed, still return 200 with empty list + reason (avoid client “Failed to fetch”)
-    okJson(res, {
-      ok: true,
-      ms: Date.now() - t0,
-      sources: diag,
-      jobs: finalJobs
-    }, 200);
-
-  } catch (err) {
-    // Never explode; return structured failure so client can render a nice error block
-    console.error('fetch-jobs fatal:', err);
-    okJson(res, {
-      ok: false,
-      message: 'Failed to fetch jobs from backend services.',
-      detail: String(err?.message || err),
-      jobs: [],
-      sources: {}
-    }, 200);
-  }
-};
