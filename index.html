@@ -1,912 +1,668 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>TASK Job Dashboard</title>
-    <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ." />
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        :root { 
-            --brand-color: #0ea5e9; 
-        }
-        body {
-            background-color: #f8fafc;
-            color: #1e293b;
-        }
-        
-        #splash-screen, .modal {
-            transition: opacity 0.5s ease-out;
-        }
-        .line-clamp-3 {
-            display: -webkit-box;
-            -webkit-line-clamp: 3;
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .tooltip {
-            position: relative;
-            display: inline-block;
-        }
-        .tooltip .tooltiptext {
-            visibility: hidden;
-            width: 220px;
-            background-color: #555;
-            color: #fff;
-            text-align: center;
-            border-radius: 6px;
-            padding: 5px;
-            position: absolute;
-            z-index: 1;
-            bottom: 125%;
-            left: 50%;
-            margin-left: -110px;
-            opacity: 0;
-            transition: opacity 0.3s;
-            font-size: 12px;
-        }
-        .tooltip:hover .tooltiptext {
-            visibility: visible;
-            opacity: 1;
-        }
-        
-        .tab-btn {
-            padding: 8px 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            border-bottom: 3px solid transparent;
-            color: #475569;
-        }
-        .tab-btn.active {
-            color: #0ea5e9;
-            border-bottom-color: #0ea5e9;
-        }
-       
-        #filter-container {
-            transition: all 0.3s ease-in-out;
-            max-height: 500px;
-            overflow: hidden;
-        }
-        #filter-container.hidden {
-            max-height: 0;
-            padding-top: 0;
-            padding-bottom: 0;
-            margin-top: 0;
-        }
-
-        /* Splash Screen Gradients */
-        #splash-screen {
-            background-size: 400% 400%;
-            animation: gradientBG 15s ease infinite;
-        }
-        #splash-screen.theme-sunrise { background: linear-gradient(-45deg, #ff9a9e, #fad0c4, #fad0c4, #ffd1ff); }
-        #splash-screen.theme-day { background: linear-gradient(-45deg, #e0f2fe, #7dd3fc, #0ea5e9, #0369a1); }
-        #splash-screen.theme-sunset { background: linear-gradient(-45deg, #ff7e5f, #feb47b, #845ec2, #d65db1); }
-        #splash-screen.theme-night { background: linear-gradient(-45deg, #020617, #0f172a, #1e293b, #334155); }
-
-        @keyframes gradientBG {
-            0% { background-position: 0% 50%; }
-            50% { background-position: 100% 50%; }
-            100% { background-position: 0% 50%; }
-        }
-
-        .loader {
-            border: 4px solid rgba(255, 255, 255, 0.2);
-            border-top: 4px solid #fff;
-            border-radius: 50%;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Fade-in animations */
-        .animate-fade-in { animation: fadeIn 0.8s 0.2s ease-out forwards; opacity: 0; }
-        .animate-fade-in-delay-1 { animation: fadeIn 0.8s 0.4s ease-out forwards; opacity: 0; }
-        @keyframes fadeIn { to { opacity: 1; } }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>TASK Job Dashboard</title>
+  <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ."/>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root { --brand-color:#0ea5e9; }
+    body { background:#f8fafc; color:#1e293b; }
+    #splash-screen,.modal{ transition:opacity .5s ease-out; }
+    .line-clamp-3{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+    .tooltip{ position:relative; display:inline-block; }
+    .tooltip .tooltiptext{ visibility:hidden; width:220px; background:#555; color:#fff; text-align:center; border-radius:6px; padding:5px; position:absolute; z-index:1; bottom:125%; left:50%; margin-left:-110px; opacity:0; transition:opacity .3s; font-size:12px; }
+    .tooltip:hover .tooltiptext{ visibility:visible; opacity:1; }
+    .tab-btn{ padding:8px 16px; font-weight:600; cursor:pointer; transition:.2s; border-bottom:3px solid transparent; color:#475569; }
+    .tab-btn.active{ color:#0ea5e9; border-bottom-color:#0ea5e9; }
+    #filter-container{ transition:all .3s ease-in-out; max-height:500px; overflow:hidden; }
+    #filter-container.hidden{ max-height:0; padding-top:0; padding-bottom:0; margin-top:0; }
+    #splash-screen{ background-size:400% 400%; animation:gradientBG 15s ease infinite; }
+    #splash-screen.theme-sunrise{ background:linear-gradient(-45deg,#ff9a9e,#fad0c4,#fad0c4,#ffd1ff); }
+    #splash-screen.theme-day{ background:linear-gradient(-45deg,#e0f2fe,#7dd3fc,#0ea5e9,#0369a1); }
+    #splash-screen.theme-sunset{ background:linear-gradient(-45deg,#ff7e5f,#feb47b,#845ec2,#d65db1); }
+    #splash-screen.theme-night{ background:linear-gradient(-45deg,#020617,#0f172a,#1e293b,#334155); }
+    @keyframes gradientBG{ 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    .loader{ border:4px solid rgba(255,255,255,.2); border-top:4px solid #fff; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; }
+    .dark .loader{ border:4px solid rgba(0,0,0,.1); border-top:4px solid var(--brand-color); }
+    @keyframes spin{ 0%{transform:rotate(0)} 100%{transform:rotate(360deg)} }
+    .animate-fade-in{ animation:fadeIn .8s .2s ease-out forwards; opacity:0; }
+    .animate-fade-in-delay-1{ animation:fadeIn .8s .4s ease-out forwards; opacity:0; }
+    @keyframes fadeIn{ to{opacity:1} }
+  </style>
 </head>
 <body>
 
-    <!-- Splash Screen -->
-    <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center">
-        <div class="text-center">
-            <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl animate-fade-in" style="text-shadow: 0 2px 4px rgba(0,0,0,0.1);">TASK Job Dashboard</h1>
-            <p class="mt-2 text-lg text-sky-100 animate-fade-in">Your connection to local opportunities.</p>
-            <button id="start-btn" class="mt-8 animate-fade-in-delay-1 bg-white/20 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30">
-                Start Exploring
-            </button>
-            <div id="splash-loader" class="hidden mt-8 h-[54px] flex items-center justify-center">
-                <div class="loader"></div>
-            </div>
+  <!-- Splash Screen -->
+  <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center">
+    <div class="text-center">
+      <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl animate-fade-in" style="text-shadow:0 2px 4px rgba(0,0,0,.1);">TASK Job Dashboard</h1>
+      <p class="mt-2 text-lg text-sky-100 animate-fade-in">Your connection to local opportunities.</p>
+      <button id="start-btn" class="mt-8 animate-fade-in-delay-1 bg-white/20 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-white/30 transition-colors backdrop-blur-sm border border-white/30">
+        Start Exploring
+      </button>
+      <div id="splash-loader" class="hidden mt-8 h-[54px] flex items-center justify-center">
+        <div class="loader"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="main-content" class="opacity-0 transition-opacity duration-500">
+    <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200">
+      <div class="max-w-6xl mx-auto px-4 py-4">
+        <div class="flex justify-between items-center">
+          <div>
+            <h1 class="text-2xl font-bold text-slate-900">TASK Job Dashboard</h1>
+            <p class="text-sm text-slate-500">A live dashboard of local job openings and employer insights.</p>
+          </div>
+          <button id="toggle-filters-btn" class="flex-shrink-0 bg-slate-200 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition">
+            Hide Filters
+          </button>
         </div>
+
+        <!-- Filter bar -->
+        <div id="filter-container" class="mt-4">
+          <div id="filter-bar" class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
+              <div class="md:col-span-2 lg:col-span-1">
+                <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
+                <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
+              </div>
+              <div>
+                <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
+                <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                  <option value="">All of Mercer County</option>
+                  <option>Trenton</option><option>Hamilton</option><option>Lawrenceville</option>
+                  <option>Princeton</option><option>Ewing</option><option>West Windsor</option>
+                  <option>East Windsor</option><option>Robbinsville</option>
+                </select>
+              </div>
+              <div>
+                <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
+                <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                  <option value="">All Industries</option>
+                  <option>Logistics & Warehouse</option>
+                  <option>Healthcare & Nursing</option>
+                  <option>Manufacturing</option>
+                  <option>Retail</option>
+                  <option>Hospitality & Catering</option>
+                </select>
+              </div>
+              <div>
+                <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
+                <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
+              </div>
+              <div class="flex items-center justify-between gap-4">
+                <div class="flex items-center">
+                  <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                  <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
+                </div>
+                <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
+                  Find
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main class="max-w-6xl mx-auto px-4 py-8">
+      <!-- Tabs -->
+      <div class="mb-6 flex justify-center border-b border-slate-200">
+        <div class="flex items-center gap-4 -mb-px">
+          <button id="job-search-tab" class="tab-btn active">Job Search</button>
+          <button id="employer-discovery-tab" class="tab-btn">Employer Discovery</button>
+          <button id="ai-counselor-tab" class="tab-btn">AI Counselor ✨</button>
+        </div>
+      </div>
+
+      <div class="mb-6">
+        <p id="stats" class="text-sm text-center text-slate-500 font-medium">—</p>
+        <p id="sourceDiag" class="text-xs text-slate-400 text-center mt-1"></p>
+      </div>
+
+      <!-- Job Search View -->
+      <div id="job-search-view">
+        <section id="visuals-container" class="mb-8 p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
+        <section id="jobs-container" class="space-y-4"></section>
+      </div>
+
+      <!-- Employer Discovery View -->
+      <div id="employer-discovery-view" class="hidden">
+        <section id="employers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
+      </div>
+
+      <!-- AI Counselor View -->
+      <div id="ai-counselor-view" class="hidden">
+        <div class="max-w-2xl mx-auto p-6 bg-white border border-slate-200 rounded-xl">
+          <h2 class="text-xl font-bold text-slate-800">AI Career Counselor</h2>
+          <p class="text-sm text-slate-500 mt-1">Describe your skills, interests, or past work, and the AI will suggest relevant local job titles to search for.</p>
+          <textarea id="user-input" class="mt-4 w-full h-28 p-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g., 'I am good with my hands and like fixing things' or 'I have 2 years of experience as a cashier'"></textarea>
+          <button id="get-suggestions-btn" class="mt-2 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition">Get Job Suggestions ✨</button>
+          <div id="suggestions-container" class="mt-4"></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Modals -->
+    <div id="mapModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
+      <div class="bg-white rounded-2xl shadow-2xl p-6 w/full max-w-2xl">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800">Job Location</h2>
+          <button id="closeMapModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+        </div>
+        <div id="map-modal-job-info" class="mb-2"></div>
+        <div class="bg-slate-200 rounded-lg" style="height:60vh;">
+          <iframe id="map-iframe" class="w-full h-full border-0 rounded-lg" loading="lazy" allowfullscreen></iframe>
+        </div>
+      </div>
     </div>
 
-    <div id="main-content" class="opacity-0 transition-opacity duration-500">
-        <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200">
-            <div class="max-w-6xl mx-auto px-4 py-4">
-                <div class="flex justify-between items-center">
-                    <div>
-                        <h1 class="text-2xl font-bold text-slate-900">TASK Job Dashboard</h1>
-                        <p class="text-sm text-slate-500">A live dashboard of local job openings and employer insights.</p>
-                    </div>
-                    <button id="toggle-filters-btn" class="flex-shrink-0 bg-slate-200 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition">
-                        Hide Filters
-                    </button>
-                </div>
-
-                <!-- Filter bar -->
-                <div id="filter-container" class="mt-4">
-                    <div id="filter-bar" class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-                        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-                            <div class="md:col-span-2 lg:col-span-1">
-                                <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
-                                <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
-                            </div>
-                            <div>
-                                <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
-                                <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
-                                    <option value="">All of Mercer County</option>
-                                    <option>Trenton</option>
-                                    <option>Hamilton</option>
-                                    <option>Lawrenceville</option>
-                                    <option>Princeton</option>
-                                    <option>Ewing</option>
-                                    <option>West Windsor</option>
-                                    <option>East Windsor</option>
-                                    <option>Robbinsville</option>
-                                </select>
-                            </div>
-                             <div>
-                                <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
-                                <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
-                                    <option value="">All Industries</option>
-                                    <option>Logistics & Warehouse</option>
-                                    <option>Healthcare & Nursing</option>
-                                    <option>Manufacturing</option>
-                                    <option>Retail</option>
-                                    <option>Hospitality & Catering</option>
-                                </select>
-                            </div>
-                             <div>
-                                <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
-                                <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500" />
-                            </div>
-                            <div class="flex items-center justify-between gap-4">
-                                <div class="flex items-center">
-                                    <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
-                                    <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
-                                </div>
-                                <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
-                                    Find
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </header>
-
-        <main class="max-w-6xl mx-auto px-4 py-8">
-            <!-- Tab Navigation -->
-            <div class="mb-6 flex justify-center border-b border-slate-200">
-                <div class="flex items-center gap-4 -mb-px">
-                     <button id="job-search-tab" class="tab-btn active">Job Search</button>
-                     <button id="employer-discovery-tab" class="tab-btn">Employer Discovery</button>
-                     <button id="ai-counselor-tab" class="tab-btn">AI Counselor ✨</button>
-                </div>
-            </div>
-
-            <div class="mb-6">
-                 <p id="stats" class="text-sm text-center text-slate-500 font-medium">—</p>
-            </div>
-           
-            <!-- Job Search View -->
-            <div id="job-search-view">
-                <section id="visuals-container" class="mb-8 p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
-                <section id="jobs-container" class="space-y-4"></section>
-            </div>
-
-            <!-- Employer Discovery View -->
-            <div id="employer-discovery-view" class="hidden">
-                 <section id="employers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
-            </div>
-             <!-- AI Counselor View -->
-            <div id="ai-counselor-view" class="hidden">
-                <div class="max-w-2xl mx-auto p-6 bg-white border border-slate-200 rounded-xl">
-                    <h2 class="text-xl font-bold text-slate-800">AI Career Counselor</h2>
-                    <p class="text-sm text-slate-500 mt-1">Describe your skills, interests, or past work, and the AI will suggest relevant local job titles to search for.</p>
-                    <textarea id="user-input" class="mt-4 w-full h-28 p-2 border border-slate-300 rounded-lg text-sm" placeholder="e.g., 'I am good with my hands and like fixing things' or 'I have 2 years of experience as a cashier'"></textarea>
-                    <button id="get-suggestions-btn" class="mt-2 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition">Get Job Suggestions ✨</button>
-                    <div id="suggestions-container" class="mt-4"></div>
-                </div>
-            </div>
-        </main>
-        
-        <!-- Modals -->
-        <div id="mapModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800">Job Location</h2>
-                    <button id="closeMapModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
-                </div>
-                <div id="map-modal-job-info" class="mb-2"></div>
-                <div class="aspect-w-16 aspect-h-9 bg-slate-200 rounded-lg" style="height: 60vh;">
-                    <iframe id="map-iframe" class="w-full h-full border-0 rounded-lg" loading="lazy" allowfullscreen></iframe>
-                </div>
-            </div>
+    <div id="routeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-30 hidden opacity-0">
+      <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800">Plan Your Commute</h2>
+          <button id="closeRouteModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
         </div>
-        <div id="routeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-30 hidden opacity-0">
-             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800">Plan Your Commute</h2>
-                    <button id="closeRouteModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
-                </div>
-                <div id="modal-job-info" class="mb-4"></div>
-                <div class="space-y-3">
-                     <a id="googleMapsLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition">Plan Transit Route</a>
-                     <a id="streetViewLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700 transition">View Street-Level Map</a>
-                     <a href="https://www.njtransit.com/trip-planner-to" target="_blank" rel="noopener" class="block w-full text-center bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition">Use NJ Transit Trip Planner</a>
-                </div>
-                <div class="mt-6 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
-                    <h4 class="font-bold mb-1">Understanding Bus Zones & Fares:</h4>
-                    <p>NJ Transit fares are based on "zones." Your trip cost depends on how many zones you travel through. <a href="https://www.njtransit.com/bus-fare-information-to" target="_blank" rel="noopener" class="text-sky-600 underline">Learn more</a>.</p>
-                </div>
-            </div>
+        <div id="modal-job-info" class="mb-4"></div>
+        <div class="space-y-3">
+          <a id="googleMapsLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-blue-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-600 transition">Plan Transit Route</a>
+          <a id="streetViewLink" href="#" target="_blank" rel="noopener" class="block w-full text-center bg-slate-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-slate-700 transition">View Street-Level Map</a>
+          <a href="https://www.njtransit.com/trip-planner-to" target="_blank" rel="noopener" class="block w-full text-center bg-gray-500 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-600 transition">Use NJ Transit Trip Planner</a>
         </div>
-        <div id="assistantModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
-            <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xl">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ Job Insights</h2>
-                    <button id="closeAssistantModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
-                </div>
-                <div id="assistantContent"></div>
-            </div>
+        <div class="mt-6 p-3 bg-slate-50 rounded-lg text-xs text-slate-600">
+          <h4 class="font-bold mb-1">Understanding Bus Zones & Fares:</h4>
+          <p>NJ Transit fares are based on "zones." Your trip cost depends on how many zones you travel through. <a href="https://www.njtransit.com/bus-fare-information-to" target="_blank" rel="noopener" class="text-sky-600 underline">Learn more</a></p>
         </div>
-        <div id="partnershipModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
-             <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤝 Partnership Analysis</h2>
-                    <button id="closePartnershipModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
-                </div>
-                <div id="partnershipContent"></div>
-            </div>
-        </div>
-
-
-        <footer class="text-center py-8">
-            <p class="text-xs text-slate-400">Transit link origin: TASK, 72 Escher St, Trenton, NJ 08609. (v1.0 Final)</p>
-        </footer>
+      </div>
     </div>
 
-    <script>
-        // --- UI Elements ---
-        const splashScreen = document.getElementById('splash-screen');
-        const startBtn = document.getElementById('start-btn');
-        const splashLoader = document.getElementById('splash-loader');
-        const mainContent = document.getElementById('main-content');
-        const jobsContainer = document.getElementById('jobs-container');
-        const employersContainer = document.getElementById('employers-container');
-        const statsEl = document.getElementById('stats');
-        const kwInput = document.getElementById('kw');
-        const locationFilter = document.getElementById('locationFilter');
-        const industryInput = document.getElementById('industry');
-        const wageInput = document.getElementById('wage');
-        const entryLevelCheckbox = document.getElementById('entryLevel');
-        const applyBtn = document.getElementById('applyFilters');
-        const visualsContainer = document.getElementById('visuals-container');
-        const filterBar = document.getElementById('filter-bar');
-        const filterContainer = document.getElementById('filter-container');
-        const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
-        
-        const jobSearchTab = document.getElementById('job-search-tab');
-        const employerDiscoveryTab = document.getElementById('employer-discovery-tab');
-        const aiCounselorTab = document.getElementById('ai-counselor-tab');
-        const jobSearchContainer = document.getElementById('job-search-view');
-        const employerDiscoveryContainer = document.getElementById('employer-discovery-view');
-        const aiCounselorContainer = document.getElementById('ai-counselor-view');
+    <div id="assistantModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
+      <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xl">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ Job Insights</h2>
+          <button id="closeAssistantModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+        </div>
+        <div id="assistantContent"></div>
+      </div>
+    </div>
 
-        const userInput = document.getElementById('user-input');
-        const getSuggestionsBtn = document.getElementById('get-suggestions-btn');
-        const suggestionsContainer = document.getElementById('suggestions-container');
+    <div id="partnershipModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
+      <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
+        <div class="flex justify-between items-center mb-4">
+          <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤝 Partnership Analysis</h2>
+          <button id="closePartnershipModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+        </div>
+        <div id="partnershipContent"></div>
+      </div>
+    </div>
 
-        const routeModal = document.getElementById('routeModal');
-        const closeRouteModalBtn = routeModal.querySelector('button');
-        const modalJobInfo = document.getElementById('modal-job-info');
-        const googleMapsLink = document.getElementById('googleMapsLink');
-        const streetViewLink = document.getElementById('streetViewLink');
-        
-        const assistantModal = document.getElementById('assistantModal');
-        const closeAssistantModalBtn = assistantModal.querySelector('button');
-        const assistantContent = document.getElementById('assistantContent');
-        
-        const partnershipModal = document.getElementById('partnershipModal');
-        const closePartnershipModalBtn = partnershipModal.querySelector('button');
-        const partnershipContent = document.getElementById('partnershipContent');
+    <footer class="text-center py-8">
+      <p class="text-xs text-slate-400">Transit link origin: TASK, 72 Escher St, Trenton, NJ 08609. (v1.0)</p>
+    </footer>
+  </div>
 
-        const mapModal = document.getElementById('mapModal');
-        const closeMapModalBtn = mapModal.querySelector('button');
-        const mapModalJobInfo = document.getElementById('map-modal-job-info');
-        const mapIframe = document.getElementById('map-iframe');
+  <!-- App Script -->
+  <script>
+    // --- Elements ---
+    const splashScreen = document.getElementById('splash-screen');
+    const startBtn = document.getElementById('start-btn');
+    const splashLoader = document.getElementById('splash-loader');
+    const mainContent = document.getElementById('main-content');
+    const jobsContainer = document.getElementById('jobs-container');
+    const employersContainer = document.getElementById('employers-container');
+    const statsEl = document.getElementById('stats');
+    const kwInput = document.getElementById('kw');
+    const locationFilter = document.getElementById('locationFilter');
+    const industryInput = document.getElementById('industry');
+    const wageInput = document.getElementById('wage');
+    const entryLevelCheckbox = document.getElementById('entryLevel');
+    const applyBtn = document.getElementById('applyFilters');
+    const visualsContainer = document.getElementById('visuals-container');
+    const filterBar = document.getElementById('filter-bar');
+    const filterContainer = document.getElementById('filter-container');
+    const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
 
-        let industryChartInstance, wageChartInstance;
-        let activeTab = 'jobs';
-        let allJobs = [];
+    const jobSearchTab = document.getElementById('job-search-tab');
+    const employerDiscoveryTab = document.getElementById('employer-discovery-tab');
+    const aiCounselorTab = document.getElementById('ai-counselor-tab');
+    const jobSearchContainer = document.getElementById('job-search-view');
+    const employerDiscoveryContainer = document.getElementById('employer-discovery-view');
+    const aiCounselorContainer = document.getElementById('ai-counselor-view');
 
-        // --- Constants & Config ---
-        const API_BASE_URL = 'https://job-board-assistant.vercel.app';
-        const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
-        const TRANSIT_HUBS = [
-            'Trenton', 'Hamilton', 'Lawrence', 'Ewing', 'Princeton', 'West Windsor', 
-            'East Windsor', 'Robbinsville', 'Marketplace', 'Quaker Bridge', 'Nassau Park', 
-            'Transit Center', 'Sloan Ave', 'Route 1', 'Route 130', 'Broad St', 'State St'
-        ];
-        const GOOD_WAGE_THRESHOLD = 20;
-        const OK_WAGE_THRESHOLD = 16;
+    const userInput = document.getElementById('user-input');
+    const getSuggestionsBtn = document.getElementById('get-suggestions-btn');
+    const suggestionsContainer = document.getElementById('suggestions-container');
 
-        // --- THEME LOGIC ---
-        function applySplashTheme() {
-            const hour = new Date().getHours();
-            let themeClass;
-            // Simplified time zones for demonstration
-            if (hour >= 5 && hour < 8) themeClass = 'theme-sunrise';
-            else if (hour >= 8 && hour < 17) themeClass = 'theme-day';
-            else if (hour >= 17 && hour < 20) themeClass = 'theme-sunset';
-            else themeClass = 'theme-night';
-            splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${themeClass}`;
+    const routeModal = document.getElementById('routeModal');
+    const closeRouteModalBtn = document.getElementById('closeRouteModalBtn') || routeModal.querySelector('button');
+    const modalJobInfo = document.getElementById('modal-job-info');
+    const googleMapsLink = document.getElementById('googleMapsLink');
+    const streetViewLink = document.getElementById('streetViewLink');
+
+    const assistantModal = document.getElementById('assistantModal');
+    const closeAssistantModalBtn = document.getElementById('closeAssistantModalBtn') || assistantModal.querySelector('button');
+    const assistantContent = document.getElementById('assistantContent');
+
+    const partnershipModal = document.getElementById('partnershipModal');
+    const closePartnershipModalBtn = document.getElementById('closePartnershipModalBtn') || partnershipModal.querySelector('button');
+    const partnershipContent = document.getElementById('partnershipContent');
+
+    const mapModal = document.getElementById('mapModal');
+    const closeMapModalBtn = document.getElementById('closeMapModalBtn') || mapModal.querySelector('button');
+    const mapModalJobInfo = document.getElementById('map-modal-job-info');
+    const mapIframe = document.getElementById('map-iframe');
+
+    let industryChartInstance, wageChartInstance;
+    let activeTab = 'jobs';
+    let allJobs = [];
+
+    // --- Config ---
+    const API_BASE_URL =
+      location.origin.includes('job-board-assistant.vercel.app')
+        ? location.origin
+        : 'https://job-board-assistant.vercel.app';
+    const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
+
+    // --- Theme ---
+    function applySplashTheme(){
+      const hour = new Date().getHours();
+      let theme = 'theme-night';
+      if (hour >= 5 && hour < 8) theme = 'theme-sunrise';
+      else if (hour >= 8 && hour < 17) theme = 'theme-day';
+      else if (hour >= 17 && hour < 20) theme = 'theme-sunset';
+      splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${theme}`;
+    }
+
+    // --- Helpers ---
+    async function readJsonSafe(resp){
+      const text = await resp.text();
+      try { return { data: JSON.parse(text), raw: text }; }
+      catch { return { data: null, raw: text }; }
+    }
+    async function handleApiError(response){
+      const text = await response.text();
+      let msg = `Request failed: ${response.status} ${response.statusText}`;
+      try { const json = JSON.parse(text); msg = json.error || json.message || msg; } catch {}
+      throw new Error(msg);
+    }
+    const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+
+    const isTransitFriendly = (location) => {
+      const HUBS = ['Trenton','Hamilton','Lawrence','Ewing','Princeton','West Windsor','East Windsor','Robbinsville','Marketplace','Quaker Bridge','Nassau Park','Transit Center','Sloan Ave','Route 1','Route 130','Broad St','State St'];
+      if (!location) return false;
+      const s = location.toLowerCase();
+      return HUBS.some(h => s.includes(h.toLowerCase()));
+    };
+    const getJobQuality = (job) => {
+      const GOOD = 20, OK = 16;
+      const fallback = { color:'yellow', text:'Potential Match', tooltip:'Review details.' };
+      if (!job || typeof job !== 'object') return fallback;
+      const hasMin = typeof job.salary_min === 'number';
+      const hasMax = typeof job.salary_max === 'number';
+      const hasRange = hasMin && hasMax;
+      const avg = hasRange ? (job.salary_min + job.salary_max)/2 : null;
+      const transit = isTransitFriendly(job.location);
+      if (hasRange && avg >= GOOD && transit) return { color:'green', text:'Good Match', tooltip:'Competitive wage and on a transit route.' };
+      if ((hasRange && avg >= GOOD) || (hasRange && avg >= OK && transit)) return { color:'yellow', text:'Potential Match', tooltip:'Meets some positive criteria (pay or transit).' };
+      if (!hasRange && !transit) return { color:'red', text:'Review Closely', tooltip:'No listed salary and may not be on a transit route.' };
+      if (hasRange && avg < OK) return { color:'red', text:'Review Closely', tooltip:'Listed wage appears below regional average.' };
+      return fallback;
+    };
+    const formatSalary = (job) => {
+      if (typeof job.salary_min==='number' && typeof job.salary_max==='number') return `$${job.salary_min.toFixed(2)} - $${job.salary_max.toFixed(2)}`;
+      if (typeof job.salary_min==='number') return `From $${job.salary_min.toFixed(2)}`;
+      if (typeof job.salary_max==='number') return `Up to $${job.salary_max.toFixed(2)}`;
+      return 'Salary not listed';
+    };
+    const streetViewUrl = (dest) => `https://www.google.com/maps?q&layer=c&cbll=${encodeURIComponent(dest)}`;
+
+    // --- Events ---
+    document.addEventListener('DOMContentLoaded', applySplashTheme);
+    startBtn.addEventListener('click', () => {
+      startBtn.classList.add('hidden'); splashLoader.classList.remove('hidden'); loadJobs(true);
+    });
+    applyBtn.addEventListener('click', () => loadJobs(false));
+    toggleFiltersBtn.addEventListener('click', () => {
+      const isHidden = filterContainer.classList.toggle('hidden');
+      toggleFiltersBtn.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
+    });
+    jobSearchTab.addEventListener('click', () => switchTab('jobs'));
+    employerDiscoveryTab.addEventListener('click', () => switchTab('employers'));
+    aiCounselorTab.addEventListener('click', () => switchTab('counselor'));
+    filterBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadJobs(false); });
+
+    closeRouteModalBtn.addEventListener('click', hideRouteModal);
+    routeModal.addEventListener('click', (e)=>{ if(e.target===routeModal) hideRouteModal(); });
+    closeAssistantModalBtn.addEventListener('click', hideAssistantModal);
+    assistantModal.addEventListener('click', (e)=>{ if(e.target===assistantModal) hideAssistantModal(); });
+    closePartnershipModalBtn.addEventListener('click', hidePartnershipModal);
+    partnershipModal.addEventListener('click', (e)=>{ if(e.target===partnershipModal) hidePartnershipModal(); });
+    closeMapModalBtn.addEventListener('click', hideMapModal);
+    mapModal.addEventListener('click', (e)=>{ if(e.target===mapModal) hideMapModal(); });
+
+    getSuggestionsBtn?.addEventListener('click', getCareerSuggestions);
+    suggestionsContainer.addEventListener('click', (e)=>{
+      if (e.target.classList.contains('suggestion-btn')){
+        kwInput.value = e.target.textContent; switchTab('jobs'); loadJobs(false);
+      }
+    });
+
+    // --- Tabs ---
+    function switchTab(tab){
+      activeTab = tab;
+      jobSearchTab.classList.toggle('active', tab==='jobs');
+      employerDiscoveryTab.classList.toggle('active', tab==='employers');
+      aiCounselorTab.classList.toggle('active', tab==='counselor');
+      jobSearchContainer.classList.toggle('hidden', tab!=='jobs');
+      employerDiscoveryContainer.classList.toggle('hidden', tab!=='employers');
+      aiCounselorContainer.classList.toggle('hidden', tab!=='counselor');
+      filterContainer.classList.toggle('hidden', tab==='counselor');
+      statsEl.classList.toggle('hidden', tab==='counselor');
+      visualsContainer.classList.toggle('hidden', tab!=='jobs');
+      if (tab!=='counselor') renderStats(allJobs); else statsEl.textContent='';
+    }
+
+    function updateView(){
+      jobSearchContainer.classList.toggle('hidden', activeTab!=='jobs');
+      employerDiscoveryContainer.classList.toggle('hidden', activeTab!=='employers');
+      aiCounselorContainer.classList.toggle('hidden', activeTab!=='counselor');
+    }
+
+    // --- AI Counselor ---
+    async function getCareerSuggestions(){
+      const txt = (userInput?.value || '').trim();
+      if (!txt){ alert('Please describe your skills or interests first.'); return; }
+      suggestionsContainer.innerHTML = `<div class="flex items-center mt-4"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-2 text-sm text-slate-500">Thinking of some ideas...</p></div>`;
+      try{
+        const url = `${API_BASE_URL}/api/career-counselor`;
+        const resp = await fetch(url,{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({userInput:txt})});
+        if(!resp.ok) await handleApiError(resp);
+        const data = await resp.json();
+        renderSuggestions(data.suggestions || []);
+      }catch(err){
+        console.error('Career Counselor failed:', err);
+        suggestionsContainer.innerHTML = `<p class="text-red-600 text-sm mt-2">${escapeHtml(err.message)}</p>`;
+      }
+    }
+    function renderSuggestions(sug=[]){
+      if (!sug.length){ suggestionsContainer.innerHTML = `<p class="text-slate-500 text-sm mt-2">No suggestions found. Try a different description.</p>`; return; }
+      suggestionsContainer.innerHTML =
+        `<p class="text-sm font-bold text-slate-700 mb-2">Try searching for:</p>` +
+        `<div class="flex flex-wrap gap-2">` +
+        sug.map(s=>`<button class="suggestion-btn bg-sky-100 text-sky-800 text-sm font-semibold py-1 px-3 rounded-full hover:bg-sky-200 transition">${escapeHtml(s)}</button>`).join('') +
+        `</div>`;
+    }
+
+    // --- Modals ---
+    async function showMapModal(job){
+      mapModalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
+      mapIframe.src = 'about:blank';
+      mapModal.classList.remove('hidden'); setTimeout(()=>mapModal.classList.remove('opacity-0'),10);
+      try{
+        const resp = await fetch(`${API_BASE_URL}/api/map-url`,{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:job.location})});
+        if(!resp.ok) await handleApiError(resp);
+        const data = await resp.json();
+        mapIframe.src = data.url;
+      }catch(e){
+        console.error('Map URL failed:', e);
+        mapModalJobInfo.innerHTML += `<p class="text-red-500 text-sm mt-2">Could not load map.</p>`;
+      }
+    }
+    function hideMapModal(){ mapModal.classList.add('opacity-0'); setTimeout(()=>{ mapModal.classList.add('hidden'); mapIframe.src='about:blank'; },500); }
+    function showRouteModal(job){
+      modalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
+      googleMapsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(TASK_ADDR)}&destination=${encodeURIComponent(job.location||'')}&travelmode=transit`;
+      streetViewLink.href = streetViewUrl(job.location);
+      routeModal.classList.remove('hidden'); setTimeout(()=>routeModal.classList.remove('opacity-0'),10);
+    }
+    function hideRouteModal(){ routeModal.classList.add('opacity-0'); setTimeout(()=>routeModal.classList.add('hidden'),300); }
+    function showAssistantModal(){ assistantModal.classList.remove('hidden'); setTimeout(()=>assistantModal.classList.remove('opacity-0'),10); }
+    function hideAssistantModal(){ assistantModal.classList.add('opacity-0'); setTimeout(()=>assistantModal.classList.add('hidden'),300); }
+    function showPartnershipModal(){ partnershipModal.classList.remove('hidden'); setTimeout(()=>partnershipModal.classList.remove('opacity-0'),10); }
+    function hidePartnershipModal(){ partnershipModal.classList.add('opacity-0'); setTimeout(()=>partnershipModal.classList.add('hidden'),300); }
+
+    async function getJobInsights(job){
+      assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
+      showAssistantModal();
+      try{
+        const resp = await fetch(`${API_BASE_URL}/api/job-insights`,{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({jobTitle:job.title,jobDescription:job.description})});
+        if(!resp.ok) await handleApiError(resp);
+        const data = await resp.json();
+        const day = `<p class="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">${escapeHtml(data.dayInTheLife||'')}</p>`;
+        const skills = Array.isArray(data.keySkills)? data.keySkills : [];
+        const skillsHtml = `<ul class="space-y-2 list-disc list-inside text-slate-700">` + skills.map(s=>`<li class="text-sm font-medium">${escapeHtml(s)}</li>`).join('') + `</ul>`;
+        assistantContent.innerHTML = `<div class="space-y-6"><div><h3 class="font-bold text-slate-800 mb-2">A Day on the Job</h3>${day}</div><div><h3 class="font-bold text-slate-800 mb-2">Key Skills to Highlight</h3>${skillsHtml}</div></div>`;
+      }catch(err){
+        console.error('Job Insights failed:', err);
+        assistantContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not get insights.</h3><p class="text-sm mt-1">${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+
+    async function getPartnershipInsights(companyName, companyLocations){
+      partnershipContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Analyzing partnership potential...</p></div>`;
+      showPartnershipModal();
+      try{
+        const resp = await fetch(`${API_BASE_URL}/api/partnership-analyzer`,{method:'POST',mode:'cors',headers:{'Content-Type':'application/json'},body:JSON.stringify({companyName,companyLocations})});
+        if(!resp.ok) await handleApiError(resp);
+        renderPartnershipModal(await resp.json());
+      }catch(err){
+        console.error('Partnership failed:', err);
+        partnershipContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not generate analysis.</h3><p class="text-sm mt-1">${escapeHtml(err.message)}</p></div>`;
+      }
+    }
+    function renderPartnershipModal(data){
+      const ratingColor = data.partnershipRating==='High' ? 'green' : data.partnershipRating==='Medium' ? 'yellow' : 'red';
+      const contactsHtml = (Array.isArray(data.contacts) && data.contacts.length && data.contacts[0].name)
+        ? data.contacts.map(c=>`<div class="p-2 bg-slate-50 rounded-md text-sm"><span class="font-bold">${escapeHtml(c.name)}</span> - <span class="text-slate-600">${escapeHtml(c.title||'')}</span></div>`).join('')
+        : '<p class="text-sm text-slate-500">No specific contacts found. Address to "Hiring Manager" or "Talent Acquisition Team".</p>';
+      partnershipContent.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="space-y-4">
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2">Partnership Rating</h3>
+              <div class="flex items-center gap-2"><span class="inline-flex items-center gap-1 bg-${ratingColor}-100 text-${ratingColor}-800 text-sm font-semibold px-3 py-1 rounded-full">${escapeHtml(data.partnershipRating||'Unknown')} Potential</span></div>
+              <p class="text-xs text-slate-600 mt-2">${escapeHtml(data.ratingJustification||'')}</p>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2">Company Values Summary</h3>
+              <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">${escapeHtml(data.companyValues||'')}</p>
+            </div>
+            <div>
+              <h3 class="font-bold text-slate-800 mb-2">Potential Contacts</h3>
+              <div class="space-y-2">${contactsHtml}</div>
+              <p class="text-xs text-slate-400 mt-2">Disclaimer: AI-generated; please verify.</p>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-800 mb-2">Draft Outreach Email</h3>
+            <textarea id="email-draft" class="w-full h-64 p-2 border border-slate-300 rounded-lg text-xs">${escapeHtml(data.draftEmail||'')}</textarea>
+            <button id="copy-email-btn" class="mt-2 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition">Copy Email</button>
+          </div>
+        </div>`;
+      document.getElementById('copy-email-btn').addEventListener('click', (e)=>{
+        const t = document.getElementById('email-draft'); t.select(); document.execCommand('copy'); e.target.textContent='Copied!'; setTimeout(()=>e.target.textContent='Copy Email', 2000);
+      });
+    }
+
+    // --- Core: Load Jobs ---
+    async function loadJobs(isInitial=false){
+      const placeholder = `<div class="flex flex-col items-center justify-center p-10 col-span-full"><div class="loader dark"></div><p class="mt-4 text-sm font-medium text-slate-500">Searching...</p></div>`;
+      if (!isInitial){ jobsContainer.innerHTML = placeholder; employersContainer.innerHTML = placeholder; }
+      statsEl.textContent='...'; visualsContainer.classList.add('hidden');
+
+      try{
+        const params = new URLSearchParams();
+        if (kwInput.value.trim()) params.set('q', kwInput.value.trim());
+        const whereQuery = locationFilter.value ? `${locationFilter.value}, Mercer County, NJ` : 'Mercer County, NJ';
+        params.set('where', whereQuery);
+        params.set('days','7');
+        params.set('limit','100');
+        if (entryLevelCheckbox.checked){
+          const existingQ = params.get('q') || '';
+          params.set('q', (`entry level ${existingQ}`).trim());
         }
+        const url = `${API_BASE_URL}/api/fetch-jobs?${params.toString()}`;
+        const resp = await fetch(url,{method:'GET',mode:'cors'});
+        const {data, raw} = await readJsonSafe(resp);
 
-        // --- Event Listeners ---
-        document.addEventListener('DOMContentLoaded', () => {
-            applySplashTheme();
+        if (!resp.ok){
+          const msg = (data && (data.error||data.message||data.detail)) || `HTTP ${resp.status}`;
+          throw new Error(msg);
+        }
+        if (!data || typeof data!=='object'){ throw new Error(`Backend returned non-JSON: ${raw?.slice(0,200) || 'empty'}`); }
+        if (data.ok === false){ throw new Error(data.message || data.detail || 'Backend reported an error'); }
+
+        const jobs = (data.jobs || []).filter(j => j && typeof j === 'object');
+
+        const minWage = parseFloat(wageInput.value) || 0;
+        const selectedIndustry = industryInput.value;
+        allJobs = jobs.filter(job=>{
+          const hasRange = typeof job.salary_min==='number' && typeof job.salary_max==='number';
+          const avg = hasRange ? (job.salary_min + job.salary_max)/2 : 0;
+          const wageMatch = !minWage || (hasRange && avg >= minWage);
+          const industryMatch = !selectedIndustry || (job.industry === selectedIndustry);
+          return wageMatch && industryMatch;
         });
-        
-        startBtn.addEventListener('click', () => {
-            startBtn.classList.add('hidden');
-            splashLoader.classList.remove('hidden');
 
-            const dataLoad = loadJobs(true);
+        renderJobs(allJobs); renderEmployers(allJobs); renderStats(allJobs); renderVisuals(allJobs); updateView();
 
-            dataLoad.finally(() => {
-                splashScreen.classList.add('opacity-0');
-                mainContent.classList.remove('opacity-0');
-                setTimeout(() => splashScreen.classList.add('hidden'), 500);
-            });
-        });
-
-        applyBtn.addEventListener('click', () => loadJobs(false));
-        toggleFiltersBtn.addEventListener('click', () => {
-            const isHidden = filterContainer.classList.toggle('hidden');
-            toggleFiltersBtn.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
-        });
-        jobSearchTab.addEventListener('click', () => switchTab('jobs'));
-        employerDiscoveryTab.addEventListener('click', () => switchTab('employers'));
-        aiCounselorTab.addEventListener('click', () => switchTab('counselor'));
-        filterBar.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') loadJobs(false);
-        });
-        closeRouteModalBtn.addEventListener('click', hideRouteModal);
-        routeModal.addEventListener('click', (e) => { if (e.target === routeModal) hideRouteModal(); });
-        closeAssistantModalBtn.addEventListener('click', hideAssistantModal);
-        assistantModal.addEventListener('click', (e) => { if (e.target === assistantModal) hideAssistantModal(); });
-        closePartnershipModalBtn.addEventListener('click', hidePartnershipModal);
-        partnershipModal.addEventListener('click', (e) => { if (e.target === partnershipModal) hidePartnershipModal(); });
-        closeMapModalBtn.addEventListener('click', hideMapModal);
-        mapModal.addEventListener('click', (e) => { if(e.target === mapModal) hideMapModal(); });
-        getSuggestionsBtn.addEventListener('click', getCareerSuggestions);
-
-        suggestionsContainer.addEventListener('click', (e) => {
-            if (e.target.classList.contains('suggestion-btn')) {
-                kwInput.value = e.target.textContent;
-                switchTab('jobs');
-                loadJobs(false);
-            }
-        });
-
-        // --- Tab Logic ---
-        function switchTab(tabName) {
-            activeTab = tabName;
-            jobSearchTab.classList.toggle('active', activeTab === 'jobs');
-            employerDiscoveryTab.classList.toggle('active', activeTab === 'employers');
-            aiCounselorTab.classList.toggle('active', activeTab === 'counselor');
-            
-            jobSearchContainer.classList.toggle('hidden', activeTab !== 'jobs');
-            employerDiscoveryContainer.classList.toggle('hidden', activeTab !== 'employers');
-            aiCounselorContainer.classList.toggle('hidden', activeTab !== 'counselor');
-            
-            filterContainer.classList.toggle('hidden', activeTab === 'counselor');
-            statsEl.classList.toggle('hidden', activeTab === 'counselor');
-            
-            if (activeTab !== 'counselor') {
-                renderStats(allJobs);
-            } else {
-                statsEl.textContent = '';
-            }
+        const s = data.sources || {};
+        const adzDiag = s.adzuna?.ok ? `${s.adzuna.count} from Adzuna` : (s.adzuna?.error || 'Adzuna down');
+        const diagEl = document.getElementById('sourceDiag');
+        if (diagEl) diagEl.textContent = `Sources — Adzuna: ${adzDiag}`;
+      }catch(error){
+        console.error('Failed to load:', error);
+        const msg = error?.message || 'Unknown error';
+        const errorHtml = `<div class="p-10 bg-red-50 text-red-700 rounded-xl text-center col-span-full">
+            <h3 class="font-bold">Couldn’t load jobs</h3>
+            <p class="text-sm mt-2">${escapeHtml(msg)}</p>
+            <p class="text-xs mt-2 text-slate-500">Tip: verify API keys and server logs on Vercel.</p>
+          </div>`;
+        jobsContainer.innerHTML = errorHtml; employersContainer.innerHTML = errorHtml; statsEl.textContent='Error';
+      }finally{
+        if (isInitial){
+          splashScreen.classList.add('opacity-0'); mainContent.classList.remove('opacity-0'); setTimeout(()=>splashScreen.classList.add('hidden'),500);
         }
+      }
+    }
 
-        function updateView() {
-            jobSearchContainer.classList.toggle('hidden', activeTab !== 'jobs');
-            employerDiscoveryContainer.classList.toggle('hidden', activeTab !== 'employers');
-            aiCounselorContainer.classList.toggle('hidden', activeTab !== 'counselor');
-        }
+    function renderStats(jobs){
+      const count = jobs.length;
+      const employerCount = new Set(jobs.map(j=>j.company)).size;
+      const locText = locationFilter.value ? ` in ${locationFilter.value}` : ' in Mercer County';
+      statsEl.textContent = (activeTab==='jobs')
+        ? `Found ${count} jobs from ${employerCount} employers${locText}.`
+        : `Found ${employerCount} employers with ${count} total jobs${locText}.`;
+    }
 
-        // --- AI Counselor Logic ---
-        async function getCareerSuggestions() {
-            const userInputText = userInput.value.trim();
-            if (!userInputText) {
-                alert('Please describe your skills or interests first.');
-                return;
-            }
-            suggestionsContainer.innerHTML = `<div class="flex items-center mt-4"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-2 text-sm text-slate-500">Thinking of some ideas...</p></div>`;
+    function renderVisuals(jobs){
+      if (!jobs || !jobs.length){ visualsContainer.innerHTML=''; visualsContainer.classList.add('hidden'); return; }
+      visualsContainer.classList.remove('hidden');
+      visualsContainer.innerHTML = `
+        <h2 class="text-lg font-bold text-slate-800">Search Summary</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+          <div><h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Industry</h3><canvas id="industryChart"></canvas></div>
+          <div><h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Pay Rate</h3><canvas id="wageChart"></canvas></div>
+        </div>`;
+      const counts = jobs.reduce((a,j)=>{ const k=j.industry||'Uncategorized'; a[k]=(a[k]||0)+1; return a; },{});
+      if (industryChartInstance) industryChartInstance.destroy();
+      industryChartInstance = new Chart(document.getElementById('industryChart'), {
+        type:'pie',
+        data:{ labels:Object.keys(counts), datasets:[{ data:Object.values(counts), backgroundColor:['#38bdf8','#fbbf24','#34d399','#a78bfa','#f87171','#fb923c'] }] },
+        options:{ responsive:true, plugins:{ legend:{position:'bottom',labels:{color:'#475569',font:{size:10}}}}}
+      });
+      const wageBins = {'< $18':0,'$18-$22':0,'$22-$26':0,'$26-$30':0,'> $30':0};
+      jobs.forEach(j=>{
+        const hasMin = typeof j.salary_min==='number', hasMax = typeof j.salary_max==='number';
+        if (!hasMin && !hasMax) return;
+        const avg = ((hasMin ? j.salary_min : j.salary_max) + (hasMax ? j.salary_max : j.salary_min)) / 2;
+        if (avg < 18) wageBins['< $18']++; else if (avg < 22) wageBins['$18-$22']++; else if (avg < 26) wageBins['$22-$26']++; else if (avg < 30) wageBins['$26-$30']++; else wageBins['> $30']++;
+      });
+      if (wageChartInstance) wageChartInstance.destroy();
+      wageChartInstance = new Chart(document.getElementById('wageChart'), {
+        type:'bar',
+        data:{ labels:Object.keys(wageBins), datasets:[{ label:'Number of Jobs', data:Object.values(wageBins), backgroundColor:'#38bdf8' }] },
+        options:{ responsive:true, plugins:{ legend:{display:false} }, scales:{ y:{beginAtZero:true,ticks:{color:'#475569',precision:0}}, x:{ticks:{color:'#475569'}} } }
+      });
+    }
 
-            try {
-                const url = `${API_BASE_URL}/api/career-counselor`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userInput: userInputText })
-                });
+    function renderJobs(jobs=[]){
+      if (!jobs.length){
+        jobsContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No jobs found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
+        return;
+      }
+      jobsContainer.innerHTML='';
+      jobs.forEach(job=>{
+        const card = document.createElement('article');
+        card.className='bg-white border border-slate-200 rounded-xl p-5 transition hover:shadow-lg hover:border-sky-300';
+        const q = (()=>{try{return getJobQuality(job)||{}}catch{return {}}})();
+        const quality = { color:q.color||'yellow', text:q.text||'Potential Match', tooltip:q.tooltip||'This job meets some positive criteria.' };
+        const qualityBadge = `<div class="tooltip"><span class="inline-flex items-center gap-1 bg-${quality.color}-100 text-${quality.color}-800 text-xs font-semibold px-2 py-0.5 rounded-full">${quality.color==='green'?'🟢':quality.color==='yellow'?'🟡':'🔴'} ${quality.text}</span><span class="tooltiptext">${escapeHtml(quality.tooltip)}</span></div>`;
+        const transitBadge = isTransitFriendly(job.location) ? `<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">🚌 Transit Friendly</span>` : '';
+        const salaryHtml = formatSalary(job);
+        card.innerHTML = `
+          <div class="flex justify-between items-start flex-wrap gap-2">
+            <div>
+              <h3 class="text-lg font-bold text-sky-700">
+                <a href="${escapeHtml(job.redirect_url||'#')}" target="_blank" rel="noopener noreferrer" class="hover:underline">${escapeHtml(job.title)}</a>
+              </h3>
+              <div class="text-sm text-slate-500 mt-2">
+                <div class="font-semibold">🏢 ${escapeHtml(job.company)}</div>
+                <div class="mt-1">📍 ${escapeHtml(job.location)}</div>
+                <div class="flex items-center gap-2 mt-2 flex-wrap">${qualityBadge} ${transitBadge}</div>
+              </div>
+            </div>
+            <div class="text-xs text-slate-400 font-semibold whitespace-nowrap">${(job.created||'').substring(0,10)}</div>
+          </div>
+          <p class="text-sm text-slate-600 mt-3 line-clamp-3">${escapeHtml(job.description||'')}</p>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
+            <div class="text-sm font-bold text-green-700">${salaryHtml}</div>
+            <div class="flex items-center gap-2">
+              <button class="view-map-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition">🗺️ View on Map</button>
+              <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition">Plan Commute</button>
+              <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition">✨ Job Insights</button>
+            </div>
+          </div>`;
+        card.querySelector('.view-map-btn').addEventListener('click', ()=>showMapModal(job));
+        card.querySelector('.plan-commute-btn').addEventListener('click', ()=>showRouteModal(job));
+        card.querySelector('.job-assistant-btn').addEventListener('click', ()=>getJobInsights(job));
+        jobsContainer.appendChild(card);
+      });
+    }
 
-                if (!response.ok) await handleApiError(response);
-                const data = await response.json();
-                renderSuggestions(data.suggestions);
-
-            } catch (error) {
-                console.error("Career Counselor call failed:", error);
-                suggestionsContainer.innerHTML = `<p class="text-red-600 text-sm mt-2">${escapeHtml(error.message)}</p>`;
-            }
-        }
-
-        function renderSuggestions(suggestions = []) {
-            if (suggestions.length === 0) {
-                suggestionsContainer.innerHTML = `<p class="text-slate-500 text-sm mt-2">No suggestions found. Try a different description.</p>`;
-                return;
-            }
-            suggestionsContainer.innerHTML = `<p class="text-sm font-bold text-slate-700 mb-2">Here are some job titles you could search for:</p><div class="flex flex-wrap gap-2">` +
-                suggestions.map(s => `<button class="suggestion-btn bg-sky-100 text-sky-800 text-sm font-semibold py-1 px-3 rounded-full hover:bg-sky-200 transition">${escapeHtml(s)}</button>`).join('') +
-                `</div>`;
-        }
-
-        // --- Helper & Modal Functions ---
-        const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[m]);
-        const isTransitFriendly = (location) => {
-            if (!location) return false;
-            const locLower = location.toLowerCase();
-            return TRANSIT_HUBS.some(hub => locLower.includes(hub.toLowerCase()));
-        };
-        const getJobQuality = (job) => {
-            const hasSalary = job.salary_min !== null;
-            const avgSalary = hasSalary ? (job.salary_min + job.salary_max) / 2 : 0;
-            const isTransit = isTransitFriendly(job.location);
-
-            if (hasSalary && avgSalary >= GOOD_WAGE_THRESHOLD && isTransit) {
-                return { color: 'green', text: 'Good Match', tooltip: 'This job has a competitive wage and is on a transit route.' };
-            }
-            if ((hasSalary && avgSalary >= GOOD_WAGE_THRESHOLD) || (avgSalary >= OK_WAGE_THRESHOLD && isTransit)) {
-                return { color: 'yellow', text: 'Potential Match', tooltip: 'This job meets some positive criteria, like good pay or transit access. Review the details.' };
-            }
-            if (!hasSalary && !isTransit) {
-                return { color: 'red', text: 'Review Closely', tooltip: 'This job has no listed salary and may not be on a transit route. Investigate further.' };
-            }
-            if (hasSalary && avgSalary < OK_WAGE_THRESHOLD) {
-                return { color: 'red', text: 'Review Closely', tooltip: 'The listed wage is below the regional average. Ensure it meets your needs.' };
-            }
-            return { color: 'yellow', text: 'Potential Match', tooltip: 'This job meets some positive criteria. Review the details.' };
-        };
-        
-        const formatSalary = (job) => {
-            if (job.salary_min != null && job.salary_max != null) {
-                return `$${job.salary_min.toFixed(2)} - $${job.salary_max.toFixed(2)}`;
-            }
-            if (job.salary_min != null) {
-                return `From $${job.salary_min.toFixed(2)}`;
-            }
-             if (job.salary_max != null) {
-                return `Up to $${job.salary_max.toFixed(2)}`;
-            }
-            return 'Salary not listed';
-        };
-
-        const streetViewUrl = (destination) => `https://www.google.com/maps?q&layer=c&cbll=${encodeURIComponent(destination)}`;
-        
-        async function showMapModal(job) {
-            mapModalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
-            mapIframe.src = `about:blank`; // Clear previous map
-            mapModal.classList.remove('hidden');
-            setTimeout(() => mapModal.classList.remove('opacity-0'), 10);
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/map-url`, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ location: job.location })
-                });
-                if (!response.ok) await handleApiError(response);
-                const data = await response.json();
-                mapIframe.src = data.url;
-            } catch (error) {
-                console.error('Failed to get map URL:', error);
-                mapModalJobInfo.innerHTML += `<p class="text-red-500 text-sm mt-2">Could not load map. Please check API key configuration.</p>`;
-            }
-        }
-        
-        function hideMapModal() {
-            mapModal.classList.add('opacity-0');
-            setTimeout(() => {
-                mapModal.classList.add('hidden');
-                document.getElementById('map-iframe').src = 'about:blank'; // Clear src to stop loading
-            }, 500);
-        }
-
-        function showRouteModal(job) {
-            modalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
-            googleMapsLink.href = `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(TASK_ADDR)}&destination=${encodeURIComponent(job.location || '')}&travelmode=transit`;
-            streetViewLink.href = streetViewUrl(job.location);
-            routeModal.classList.remove('hidden');
-            setTimeout(() => routeModal.classList.remove('opacity-0'), 10);
-        }
-
-        function hideRouteModal() {
-            routeModal.classList.add('opacity-0');
-            setTimeout(() => routeModal.classList.add('hidden'), 300);
-        }
-
-        function showAssistantModal() {
-            assistantModal.classList.remove('hidden');
-            setTimeout(() => assistantModal.classList.remove('opacity-0'), 10);
-        }
-
-        function hideAssistantModal() {
-            assistantModal.classList.add('opacity-0');
-            setTimeout(() => assistantModal.classList.add('hidden'), 300);
-        }
-        
-        function showPartnershipModal() {
-            partnershipModal.classList.remove('hidden');
-            setTimeout(() => partnershipModal.classList.remove('opacity-0'), 10);
-        }
-
-        function hidePartnershipModal() {
-            partnershipModal.classList.add('opacity-0');
-            setTimeout(() => partnershipModal.classList.add('hidden'), 300);
-        }
-        
-        async function handleApiError(response) {
-            const text = await response.text();
-            let msg = `Request failed: ${response.status} ${response.statusText}`;
-            try {
-                const json = JSON.parse(text);
-                msg = json.error || json.message || msg;
-            } catch (e) {
-                msg += `. The server might be down or a configuration error occurred. Please check the Vercel deployment logs and ensure all API keys are set as environment variables.`;
-            }
-            throw new Error(msg);
-        }
-
-        async function getJobInsights(job) {
-            assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
-            showAssistantModal();
-
-            try {
-                const url = `${API_BASE_URL}/api/job-insights`;
-                const response = await fetch(url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        jobTitle: job.title, 
-                        jobDescription: job.description 
-                    })
-                });
-                if (!response.ok) await handleApiError(response);
-                
-                const data = await response.json();
-                
-                const dayInTheLifeHtml = `<p class="text-sm text-slate-700 bg-slate-50 p-3 rounded-lg">${escapeHtml(data.dayInTheLife)}</p>`;
-                const skillsHtml = '<ul class="space-y-2 list-disc list-inside text-slate-700">' + data.keySkills.map(item => `<li class="text-sm font-medium">${escapeHtml(item)}</li>`).join('') + '</ul>';
-
-                assistantContent.innerHTML = `
-                    <div class="space-y-6">
-                        <div><h3 class="font-bold text-slate-800 mb-2">A Day on the Job</h3>${dayInTheLifeHtml}</div>
-                        <div><h3 class="font-bold text-slate-800 mb-2">Key Skills to Highlight</h3>${skillsHtml}</div>
-                    </div>`;
-
-            } catch (error) {
-                console.error("Job Insights call failed:", error);
-                assistantContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not get insights.</h3><p class="text-sm mt-1">${escapeHtml(error.message)}</p></div>`;
-            }
-        }
-
-        async function getPartnershipInsights(companyName, companyLocations) {
-            partnershipContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Analyzing partnership potential...</p></div>`;
-            showPartnershipModal();
-
-            try {
-                 const url = `${API_BASE_URL}/api/partnership-analyzer`;
-                 const response = await fetch(url, {
-                    method: 'POST',
-                    mode: 'cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ companyName, companyLocations })
-                });
-
-                if (!response.ok) await handleApiError(response);
-                
-                const data = await response.json();
-                renderPartnershipModal(data);
-
-            } catch (error) {
-                console.error("Partnership analysis failed:", error);
-                partnershipContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not generate analysis.</h3><p class="text-sm mt-1">${escapeHtml(error.message)}</p></div>`;
-            }
-        }
-        
-        function renderPartnershipModal(data) {
-            const ratingColor = data.partnershipRating === 'High' ? 'green' : data.partnershipRating === 'Medium' ? 'yellow' : 'red';
-            const contactsHtml = data.contacts && data.contacts.length > 0 && data.contacts[0].name
-                ? data.contacts.map(c => `<div class="p-2 bg-slate-50 rounded-md text-sm"><span class="font-bold">${escapeHtml(c.name)}</span> - <span class="text-slate-600">${escapeHtml(c.title)}</span></div>`).join('')
-                : '<p class="text-sm text-slate-500">No specific contacts found. Recommend addressing email to "Hiring Manager" or "Talent Acquisition Team".</p>';
-
-            partnershipContent.innerHTML = `
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div class="space-y-4">
-                        <div>
-                            <h3 class="font-bold text-slate-800 mb-2">Partnership Rating</h3>
-                            <div class="flex items-center gap-2">
-                                <span class="inline-flex items-center gap-1 bg-${ratingColor}-100 text-${ratingColor}-800 text-sm font-semibold px-3 py-1 rounded-full">${data.partnershipRating} Potential</span>
-                            </div>
-                            <p class="text-xs text-slate-600 mt-2">${escapeHtml(data.ratingJustification)}</p>
-                        </div>
-                         <div>
-                            <h3 class="font-bold text-slate-800 mb-2">Company Values Summary</h3>
-                            <p class="text-sm text-slate-600 bg-slate-50 p-3 rounded-lg">${escapeHtml(data.companyValues)}</p>
-                        </div>
-                        <div>
-                            <h3 class="font-bold text-slate-800 mb-2">Potential Contacts</h3>
-                            <div class="space-y-2">${contactsHtml}</div>
-                            <p class="text-xs text-slate-400 mt-2">Disclaimer: AI-generated contacts. Please verify on LinkedIn or the company website.</p>
-                        </div>
-                    </div>
-                    <div>
-                        <h3 class="font-bold text-slate-800 mb-2">Draft Outreach Email</h3>
-                        <textarea id="email-draft" class="w-full h-64 p-2 border border-slate-300 rounded-lg text-xs">${escapeHtml(data.draftEmail)}</textarea>
-                        <button id="copy-email-btn" class="mt-2 w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition">Copy Email</button>
-                    </div>
-                </div>
-            `;
-            
-            document.getElementById('copy-email-btn').addEventListener('click', (e) => {
-                const emailText = document.getElementById('email-draft');
-                emailText.select();
-                document.execCommand('copy');
-                e.target.textContent = 'Copied!';
-                setTimeout(() => { e.target.textContent = 'Copy Email'; }, 2000);
-            });
-        }
-
-        // --- Core Application Logic ---
-        async function loadJobs(isInitialLoad = false) {
-            if (!isInitialLoad) {
-                 const placeholder = `<div class="flex flex-col items-center justify-center p-10 col-span-full"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="mt-4 text-sm font-medium text-slate-500">Searching...</p></div>`;
-                 jobsContainer.innerHTML = placeholder;
-                 employersContainer.innerHTML = placeholder;
-            }
-            statsEl.textContent = '...';
-            visualsContainer.classList.add('hidden');
-
-            const params = new URLSearchParams();
-            let queryParts = [];
-            if (entryLevelCheckbox.checked) queryParts.push('entry level');
-            const keyword = kwInput.value.trim();
-            if (keyword) queryParts.push(keyword);
-            if (industryInput.value) queryParts.push(industryInput.value);
-
-            if(queryParts.length > 0) params.set('q', [...new Set(queryParts)].join(' '));
-
-            const whereQuery = locationFilter.value ? `${locationFilter.value}, Mercer County, NJ` : 'Mercer County, NJ';
-            params.set('where', whereQuery);
-            params.set('days', '7');
-            params.set('limit', '100');
-            
-            const url = `${API_BASE_URL}/api/fetch-jobs?${params.toString()}`;
-
-            try {
-                const response = await fetch(url, { method: 'GET', mode: 'cors' });
-                if (!response.ok) await handleApiError(response);
-                const data = await response.json();
-                
-                if (data.ok === false) throw new Error(data.message || 'The job API returned a fallback response.');
-                
-                const minWage = parseFloat(wageInput.value) || 0;
-                
-                allJobs = data.jobs.filter(job => {
-                    if (!minWage) return true;
-                    if (job.salary_min == null && job.salary_max == null) return true; 
-                    if (job.salary_max != null) return job.salary_max >= minWage;
-                    if (job.salary_min != null) return job.salary_min >= minWage;
-                    return false;
-                });
-
-                renderJobs(allJobs);
-                renderEmployers(allJobs);
-                renderStats(allJobs);
-                renderVisuals(allJobs);
-                updateView();
-            } catch (error) {
-                console.error("Failed to load:", error);
-                const errorHtml = `<div class="p-10 bg-red-50 text-red-700 rounded-xl text-center col-span-full"><h3 class="font-bold">Oops! Something went wrong.</h3><p class="text-sm mt-2">${escapeHtml(error.message)}</p></div>`;
-                jobsContainer.innerHTML = errorHtml;
-                employersContainer.innerHTML = errorHtml;
-                statsEl.textContent = 'Error';
-            } 
-        }
-
-        function renderStats(jobs) {
-            const count = jobs.length;
-            const employerCount = new Set(jobs.map(j => j.company)).size;
-            const locationText = locationFilter.value ? ` in ${locationFilter.value}` : ' in Mercer County';
-            
-            if (activeTab === 'jobs') {
-                 statsEl.textContent = `Found ${count} jobs from ${employerCount} employers${locationText}.`;
-            } else {
-                 statsEl.textContent = `Found ${employerCount} employers with ${count} total jobs${locationText}.`;
-            }
-        }
-        
-        function renderVisuals(jobs) {
-            if (!jobs || jobs.length === 0) {
-                visualsContainer.innerHTML = '';
-                visualsContainer.classList.add('hidden');
-                return;
-            }
-            visualsContainer.classList.remove('hidden');
-            visualsContainer.innerHTML = `
-                <h2 class="text-lg font-bold text-slate-800">Search Summary</h2>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    <div>
-                        <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Industry</h3>
-                        <canvas id="industryChart"></canvas>
-                    </div>
-                    <div>
-                         <h3 class="text-center font-semibold text-slate-600 text-sm">Jobs by Pay Rate</h3>
-                        <canvas id="wageChart"></canvas>
-                    </div>
-                </div>`;
-
-            const industryCounts = jobs.reduce((acc, job) => {
-                const industry = job.industry || 'Uncategorized';
-                acc[industry] = (acc[industry] || 0) + 1;
-                return acc;
-            }, {});
-
-            if (industryChartInstance) industryChartInstance.destroy();
-            industryChartInstance = new Chart(document.getElementById('industryChart'), {
-                type: 'pie', data: { labels: Object.keys(industryCounts), datasets: [{ data: Object.values(industryCounts), backgroundColor: ['#38bdf8', '#fbbf24', '#34d399', '#a78bfa', '#f87171', '#fb923c'] }] },
-                options: { responsive: true, plugins: { legend: { position: 'bottom', labels: { color: '#475569', font: { size: 10 } } } } }
-            });
-
-            const wageBins = { '< $18': 0, '$18-$22': 0, '$22-$26': 0, '$26-$30': 0, '> $30': 0 };
-            jobs.forEach(job => {
-                const avgSalary = (job.salary_min + job.salary_max) / 2;
-                if (isNaN(avgSalary)) return;
-                if (avgSalary < 18) wageBins['< $18']++;
-                else if (avgSalary < 22) wageBins['$18-$22']++;
-                else if (avgSalary < 26) wageBins['$22-$26']++;
-                else if (avgSalary < 30) wageBins['$26-$30']++;
-                else wageBins['> $30']++;
-            });
-
-            if (wageChartInstance) wageChartInstance.destroy();
-            wageChartInstance = new Chart(document.getElementById('wageChart'), {
-                type: 'bar', data: { labels: Object.keys(wageBins), datasets: [{ label: 'Number of Jobs', data: Object.values(wageBins), backgroundColor: '#38bdf8' }] },
-                options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { color: '#475569', precision: 0 } }, x: { ticks: { color: '#475569' } } } }
-            });
-        }
-        
-        function renderJobs(jobs = []) {
-            if (jobs.length === 0) {
-                jobsContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No jobs found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
-                return;
-            }
-            jobsContainer.innerHTML = ''; 
-            jobs.forEach(job => {
-                const card = document.createElement('article');
-                card.className = 'bg-white border border-slate-200 rounded-xl p-5 transition hover:shadow-lg hover:border-sky-300';
-                
-                const quality = getJobQuality(job);
-                const qualityBadge = `<div class="tooltip"><span class="inline-flex items-center gap-1 bg-${quality.color}-100 text-${quality.color}-800 text-xs font-semibold px-2 py-0.5 rounded-full">
-                    ${quality.color === 'green' ? '🟢' : quality.color === 'yellow' ? '🟡' : '🔴'} ${quality.text}
-                    </span><span class="tooltiptext">${escapeHtml(quality.tooltip)}</span></div>`;
-
-                const transitBadge = isTransitFriendly(job.location) ? `<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">🚌 Transit Friendly</span>` : '';
-
-                card.innerHTML = `
-                    <div class="flex justify-between items-start flex-wrap gap-2">
-                        <div>
-                            <h3 class="text-lg font-bold text-sky-700">
-                                <a href="${escapeHtml(job.redirect_url || '#')}" target="_blank" rel="noopener noreferrer" class="hover:underline">${escapeHtml(job.title)}</a>
-                            </h3>
-                            <div class="text-sm text-slate-500 mt-2">
-                                <div class="font-semibold">🏢 ${escapeHtml(job.company)}</div>
-                                <div class="mt-1">📍 ${escapeHtml(job.location)}</div>
-                                <div class="flex items-center gap-2 mt-2 flex-wrap">
-                                    ${qualityBadge}
-                                    ${transitBadge}
-                                </div>
-                            </div>
-                        </div>
-                        <div class="text-xs text-slate-400 font-semibold whitespace-nowrap">${job.created.substring(0, 10)}</div>
-                    </div>
-                    <p class="text-sm text-slate-600 mt-3 line-clamp-3">${escapeHtml(job.description)}</p>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
-                        <div class="text-sm font-bold text-green-700">${formatSalary(job)}</div>
-                        <div class="flex items-center gap-2">
-                             <button class="view-map-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition whitespace-nowrap">🗺️ View on Map</button>
-                             <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition whitespace-nowrap">Plan Commute</button>
-                             <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition whitespace-nowrap">✨ Job Insights</button>
-                        </div>
-                    </div>`;
-                
-                card.querySelector('.view-map-btn').addEventListener('click', () => showMapModal(job));
-                card.querySelector('.plan-commute-btn').addEventListener('click', () => showRouteModal(job));
-                card.querySelector('.job-assistant-btn').addEventListener('click', () => getJobInsights(job));
-                jobsContainer.appendChild(card);
-            });
-        }
-
-        function renderEmployers(jobs = []) {
-            if (jobs.length === 0) {
-                employersContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No employers found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
-                return;
-            }
-
-            const employers = jobs.reduce((acc, job) => {
-                const company = job.company || 'Unknown Company';
-                if (!acc[company]) acc[company] = [];
-                acc[company].push(job);
-                return acc;
-            }, {});
-
-            employersContainer.innerHTML = '';
-            Object.entries(employers).forEach(([companyName, jobList]) => {
-                const card = document.createElement('article');
-                card.className = 'bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between transition hover:shadow-lg hover:border-sky-300';
-
-                const locations = [...new Set(jobList.map(j => j.location))];
-                const isEmpTransitFriendly = jobList.some(j => isTransitFriendly(j.location));
-                const transitBadge = isEmpTransitFriendly ? `<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">🚌 Transit Friendly</span>` : '';
-                
-                card.innerHTML = `
-                    <div>
-                        <h3 class="text-lg font-bold text-sky-700">${escapeHtml(companyName)}</h3>
-                        <p class="text-sm font-semibold text-slate-600 mt-2">${jobList.length} recent open position(s)</p>
-                        <div class="mt-2 text-xs text-slate-500">
-                            <strong>Hiring In:</strong> ${escapeHtml(locations.join(', '))}
-                        </div>
-                        <div class="mt-3">${transitBadge}</div>
-                    </div>
-                    <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
-                         <button class="view-jobs-btn w-full bg-slate-100 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition">View Jobs</button>
-                         <button class="analyze-partner-btn w-full bg-sky-100 text-sky-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-sky-200 transition">🤝 Analyze Partnership</button>
-                    </div>
-                `;
-                card.querySelector('.view-jobs-btn').addEventListener('click', () => {
-                    kwInput.value = companyName;
-                    switchTab('jobs');
-                    loadJobs(false);
-                });
-                card.querySelector('.analyze-partner-btn').addEventListener('click', () => getPartnershipInsights(companyName, locations.join(', ')));
-                employersContainer.appendChild(card);
-            });
-        }
-    </script>
+    function renderEmployers(jobs=[]){
+      if (!jobs.length){
+        employersContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No employers found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
+        return;
+      }
+      const employers = jobs.reduce((acc,j)=>{ const c=j.company||'Unknown Company'; (acc[c]=acc[c]||[]).push(j); return acc; },{});
+      employersContainer.innerHTML='';
+      Object.entries(employers).forEach(([companyName, list])=>{
+        const card = document.createElement('article');
+        card.className='bg-white border border-slate-200 rounded-xl p-5 flex flex-col justify-between transition hover:shadow-lg hover:border-sky-300';
+        const locations = [...new Set(list.map(j=>j.location))];
+        const empTransit = list.some(j=>isTransitFriendly(j.location));
+        const transitBadge = empTransit ? `<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">🚌 Transit Friendly</span>` : '';
+        card.innerHTML = `
+          <div>
+            <h3 class="text-lg font-bold text-sky-700">${escapeHtml(companyName)}</h3>
+            <p class="text-sm font-semibold text-slate-600 mt-2">${list.length} recent open position(s)</p>
+            <div class="mt-2 text-xs text-slate-500"><strong>Hiring In:</strong> ${escapeHtml(locations.join(', '))}</div>
+            <div class="mt-3">${transitBadge}</div>
+          </div>
+          <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-2">
+            <button class="view-jobs-btn w-full bg-slate-100 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-200 transition">View Jobs</button>
+            <button class="analyze-partner-btn w-full bg-sky-100 text-sky-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-sky-200 transition">🤝 Analyze Partnership</button>
+          </div>`;
+        card.querySelector('.view-jobs-btn').addEventListener('click', ()=>{ kwInput.value = companyName; switchTab('jobs'); loadJobs(false); });
+        card.querySelector('.analyze-partner-btn').addEventListener('click', ()=> getPartnershipInsights(companyName, locations.join(', ')));
+        employersContainer.appendChild(card);
+      });
+    }
+  </script>
 </body>
 </html>
-
