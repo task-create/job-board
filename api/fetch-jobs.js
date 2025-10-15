@@ -41,7 +41,7 @@ async function fetchFromAdzuna(q, where, limit, days, appId, apiKey) {
     const response = await fetch(url.toString());
     if (!response.ok) {
         const text = await response.text();
-        throw new Error(`Adzuna API Error: ${response.status} ${text}`);
+        throw new Error(`Adzuna API returned non-200 status (${response.status}). Body: ${text}`);
     }
     const data = await response.json();
     return (data.results || []).map(job => normalizeJob(job, 'adzuna'));
@@ -60,8 +60,13 @@ export default async function handler(req, res) {
 
     const { ADZUNA_APP_ID, ADZUNA_API_KEY } = process.env;
     
+    // --- CRITICAL CHECK: ENSURE KEYS EXIST ---
+    if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
+        // Explicitly tell the front-end what the problem is
+        return res.status(500).json({ ok: false, error: 'CONFIGURATION ERROR: Adzuna API keys are not configured on the Vercel server. Please check Environment Variables.' });
+    }
+    
     // --- OPTIMIZED DEFAULT QUERY FOR TASK NEEDS ---
-    // Targeted roles: Warehouse, Retail, Healthcare, Food Service, Maintenance, and stepping-stone roles.
     const ENTRY_LEVEL_ROLES = 'warehouse OR retail OR "customer service" OR healthcare OR housekeeping OR cook OR "food service" OR culinary OR assembly OR manufacturing OR sanitation OR cleaner';
     const NEXT_LEVEL_KEYWORDS = 'team lead OR supervisor OR coordinator OR shift lead OR senior associate OR specialized technician OR foreman';
 
@@ -85,14 +90,8 @@ export default async function handler(req, res) {
     let adzunaJobs = [];
     
     try {
-        // 1. Fetch from Adzuna (Required)
-        if (!ADZUNA_APP_ID || !ADZUNA_API_KEY) {
-            throw new Error('Adzuna API keys are not configured on the server.');
-        }
-
         adzunaJobs = await fetchFromAdzuna(q, where, limit, days, ADZUNA_APP_ID, ADZUNA_API_KEY);
         
-        // 2. No second source integration needed (simpler solution)
         const combinedJobs = adzunaJobs;
         
         if (combinedJobs.length === 0) {
@@ -113,13 +112,13 @@ export default async function handler(req, res) {
             }
         };
 
-        // 3. Cache the results
+        // Cache the results
         cache.set(cacheKey, { jobs: combinedJobs, timestamp: Date.now(), meta: responseData.meta });
 
         return res.status(200).json(responseData);
 
     } catch (err) {
         console.error('FATAL Adzuna Fetch error:', err);
-        return res.status(500).json({ ok: false, error: 'Failed to fetch jobs from backend services. Check server logs.' });
+        return res.status(500).json({ ok: false, error: `Adzuna API call failed. Details: ${err.message}` });
     }
 }
