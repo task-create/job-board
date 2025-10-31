@@ -5,8 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>TASK Job Dashboard</title>
   <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ."/>
+  
   <script src="https://cdn.tailwindcss.com"></script>
+  
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
   <style>
     :root { --brand-color:#0ea5e9; }
     body { background:#f8fafc; color:#1e293b; }
@@ -17,8 +23,10 @@
     .tooltip:hover .tooltiptext{ visibility:visible; opacity:1; }
     .tab-btn{ padding:8px 16px; font-weight:600; cursor:pointer; transition:.2s; border-bottom:3px solid transparent; color:#475569; }
     .tab-btn.active{ color:#0ea5e9; border-bottom-color:#0ea5e9; }
-    #filter-container{ transition:all .3s ease-in-out; max-height:500px; overflow:hidden; }
-    #filter-container.hidden{ max-height:0; padding-top:0; padding-bottom:0; margin-top:0; }
+
+    /* Filter container is no longer hidden/shown */
+    #filter-container{ transition:all .3s ease-in-out; }
+
     #splash-screen{ background-size:400% 400%; animation:gradientBG 15s ease infinite; }
     #splash-screen.theme-sunrise{ background:linear-gradient(-45deg,#ff9a9e,#fad0c4,#fad0c4,#ffd1ff); }
     #splash-screen.theme-day{ background:linear-gradient(-45deg,#e0f2fe,#7dd3fc,#0ea5e9,#0369a1); }
@@ -31,11 +39,37 @@
     .animate-fade-in{ animation:fadeIn .8s .2s ease-out forwards; opacity:0; }
     .animate-fade-in-delay-1{ animation:fadeIn .8s .4s ease-out forwards; opacity:0; }
     @keyframes fadeIn{ to{opacity:1} }
+    
+    /* NEW: Map and Sidebar Styles */
+    #map {
+      height: 85vh; /* Give the map a fixed height */
+      width: 100%;
+      border-radius: 0.75rem; /* 12px */
+      z-index: 10;
+    }
+    #sidebar-content {
+      height: 85vh; /* Match map height */
+      overflow-y: auto;
+    }
+    .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+    }
+    .leaflet-popup-content {
+      font-size: 14px;
+      line-height: 1.4;
+    }
+    .leaflet-popup-content b {
+      color: var(--brand-color);
+    }
+    /* Style for job card when hovered */
+    #jobs-container .job-card:hover {
+        border-color: var(--brand-color);
+        box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    }
   </style>
 </head>
 <body>
 
-  <!-- Splash Screen -->
   <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center">
     <div class="text-center">
       <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl animate-fade-in" style="text-shadow:0 2px 4px rgba(0,0,0,.1);">TASK Job Dashboard</h1>
@@ -50,67 +84,19 @@
   </div>
 
   <div id="main-content" class="opacity-0 transition-opacity duration-500">
+    
     <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200">
-      <div class="max-w-6xl mx-auto px-4 py-4">
+      <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex justify-between items-center">
           <div>
             <h1 class="text-2xl font-bold text-slate-900">TASK Job Dashboard</h1>
             <p class="text-sm text-slate-500">A live dashboard of local job openings and employer insights.</p>
           </div>
-          <button id="toggle-filters-btn" class="flex-shrink-0 bg-slate-200 text-slate-700 text-sm font-bold py-2 px-4 rounded-lg hover:bg-slate-300 transition">
-            Hide Filters
-          </button>
-        </div>
-
-        <!-- Filter bar -->
-        <div id="filter-container" class="mt-4">
-          <div id="filter-bar" class="p-4 bg-slate-50 border border-slate-200 rounded-xl">
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 items-end">
-              <div class="md:col-span-2 lg:col-span-1">
-                <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
-                <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
-              </div>
-              <div>
-                <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
-                <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
-                  <option value="">All of Mercer County</option>
-                  <option>Trenton</option><option>Hamilton</option><option>Lawrenceville</option>
-                  <option>Princeton</option><option>Ewing</option><option>West Windsor</option>
-                  <option>East Windsor</option><option>Robbinsville</option>
-                </select>
-              </div>
-              <div>
-                <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
-                <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
-                  <option value="">All Industries</option>
-                  <option>Logistics & Warehouse</option>
-                  <option>Healthcare & Nursing</option>
-                  <option>Manufacturing</option>
-                  <option>Retail</option>
-                  <option>Hospitality & Catering</option>
-                </select>
-              </div>
-              <div>
-                <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
-                <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
-              </div>
-              <div class="flex items-center justify-between gap-4">
-                <div class="flex items-center">
-                  <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
-                  <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
-                </div>
-                <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
-                  Find
-                </button>
-              </div>
-            </div>
           </div>
-        </div>
       </div>
     </header>
 
-    <main class="max-w-6xl mx-auto px-4 py-8">
-      <!-- Tabs -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
       <div class="mb-6 flex justify-center border-b border-slate-200">
         <div class="flex items-center gap-4 -mb-px">
           <button id="job-search-tab" class="tab-btn active">Job Search</button>
@@ -124,18 +110,78 @@
         <p id="sourceDiag" class="text-xs text-slate-400 text-center mt-1"></p>
       </div>
 
-      <!-- Job Search View -->
       <div id="job-search-view">
-        <section id="visuals-container" class="mb-8 p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
-        <section id="jobs-container" class="space-y-4"></section>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          
+          <div class="lg:col-span-1">
+            <div id="sidebar-content" class="space-y-4">
+              
+              <div id="filter-container">
+                <div id="filter-bar" class="p-4 bg-white border border-slate-200 rounded-xl">
+                  <h2 class="text-lg font-bold text-slate-800 mb-3">Find Jobs</h2>
+                  <div class="grid grid-cols-1 gap-4 items-end">
+                    <div>
+                      <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
+                      <input id="kw" placeholder="e.g., warehouse, Amazon" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
+                    </div>
+                    <div>
+                      <label for="locationFilter" class="text-xs font-semibold text-slate-600">Specific Location</label>
+                      <select id="locationFilter" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                        <option value="">All of Mercer County</option>
+                        <option>Trenton</option><option>Hamilton</option><option>Lawrenceville</option>
+                        <option>Princeton</option><option>Ewing</option><option>West Windsor</option>
+                        <option>East Windsor</option><option>Robbinsville</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="industry" class="text-xs font-semibold text-slate-600">Industry</label>
+                      <select id="industry" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500">
+                        <option value="">All Industries</option>
+                        <option>Logistics & Warehouse</option>
+                        <option>Healthcare & Nursing</option>
+                        <option>Manufacturing</option>
+                        <option>Retail</option>
+                        <option>Hospitality & Catering</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
+                      <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
+                    </div>
+                    <div class="flex items-center justify-between gap-4">
+                      <div class="flex items-center">
+                        <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
+                        <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
+                      </div>
+                      <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
+                        Find
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <section id="visuals-container" class="p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
+
+              <section id="jobs-container" class="space-y-4"></section>
+
+            </div>
+          </div>
+          
+          <div class="lg:col-span-2">
+            <div id="map-container" class="sticky top-24">
+              <div id="map" class="bg-slate-100 border border-slate-200">
+                 </div>
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      <!-- Employer Discovery View -->
       <div id="employer-discovery-view" class="hidden">
         <section id="employers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
       </div>
 
-      <!-- AI Counselor View -->
       <div id="ai-counselor-view" class="hidden">
         <div class="max-w-2xl mx-auto p-6 bg-white border border-slate-200 rounded-xl">
           <h2 class="text-xl font-bold text-slate-800">AI Career Counselor</h2>
@@ -147,12 +193,11 @@
       </div>
     </main>
 
-    <!-- Modals -->
     <div id="mapModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w/full max-w-2xl">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800">Job Location</h2>
-          <button id="closeMapModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+          <button id="closeMapModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">×</button>
         </div>
         <div id="map-modal-job-info" class="mb-2"></div>
         <div class="bg-slate-200 rounded-lg" style="height:60vh;">
@@ -160,12 +205,11 @@
         </div>
       </div>
     </div>
-
     <div id="routeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-30 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800">Plan Your Commute</h2>
-          <button id="closeRouteModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+          <button id="closeRouteModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">×</button>
         </div>
         <div id="modal-job-info" class="mb-4"></div>
         <div class="space-y-3">
@@ -179,22 +223,20 @@
         </div>
       </div>
     </div>
-
     <div id="assistantModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xl">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">✨ Job Insights</h2>
-          <button id="closeAssistantModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+          <button id="closeAssistantModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">×</button>
         </div>
         <div id="assistantContent"></div>
       </div>
     </div>
-
     <div id="partnershipModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
         <div class="flex justify-between items-center mb-4">
           <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">🤝 Partnership Analysis</h2>
-          <button id="closePartnershipModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">&times;</button>
+          <button id="closePartnershipModalBtn" class="text-slate-400 hover:text-slate-800 text-2xl font-bold">×</button>
         </div>
         <div id="partnershipContent"></div>
       </div>
@@ -205,7 +247,6 @@
     </footer>
   </div>
 
-  <!-- App Script -->
   <script>
     // --- Elements ---
     const splashScreen = document.getElementById('splash-screen');
@@ -224,7 +265,7 @@
     const visualsContainer = document.getElementById('visuals-container');
     const filterBar = document.getElementById('filter-bar');
     const filterContainer = document.getElementById('filter-container');
-    const toggleFiltersBtn = document.getElementById('toggle-filters-btn');
+    // const toggleFiltersBtn = document.getElementById('toggle-filters-btn'); // REMOVED
 
     const jobSearchTab = document.getElementById('job-search-tab');
     const employerDiscoveryTab = document.getElementById('employer-discovery-tab');
@@ -255,6 +296,11 @@
     const closeMapModalBtn = document.getElementById('closeMapModalBtn') || mapModal.querySelector('button');
     const mapModalJobInfo = document.getElementById('map-modal-job-info');
     const mapIframe = document.getElementById('map-iframe');
+    
+    // NEW: Map variables
+    let map;
+    let markersLayer;
+    let jobMarkers = {}; // To store markers by job ID
 
     let industryChartInstance, wageChartInstance;
     let activeTab = 'jobs';
@@ -267,7 +313,7 @@
         : 'https://job-board-assistant.vercel.app';
     const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
 
-    // --- Theme ---
+    // --- Theme (Unchanged) ---
     function applySplashTheme(){
       const hour = new Date().getHours();
       let theme = 'theme-night';
@@ -277,7 +323,7 @@
       splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${theme}`;
     }
 
-    // --- Helpers ---
+    // --- Helpers (Unchanged) ---
     async function readJsonSafe(resp){
       const text = await resp.text();
       try { return { data: JSON.parse(text), raw: text }; }
@@ -289,8 +335,7 @@
       try { const json = JSON.parse(text); msg = json.error || json.message || msg; } catch {}
       throw new Error(msg);
     }
-    const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
-
+    const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({'&':'&','<':'<','>':'>','"':'"',"'":'''}[m]));
     const isTransitFriendly = (location) => {
       const HUBS = ['Trenton','Hamilton','Lawrence','Ewing','Princeton','West Windsor','East Windsor','Robbinsville','Marketplace','Quaker Bridge','Nassau Park','Transit Center','Sloan Ave','Route 1','Route 130','Broad St','State St'];
       if (!location) return false;
@@ -319,22 +364,102 @@
       return 'Salary not listed';
     };
     const streetViewUrl = (dest) => `https://www.google.com/maps?q&layer=c&cbll=${encodeURIComponent(dest)}`;
+    
+    // --- NEW: Map Functions ---
+    function initMap() {
+        if (map) return; // Only init once
+        
+        // Mercer County, NJ coordinates
+        const center_lat = 40.28;
+        const center_lon = -74.68;
+        
+        map = L.map('map').setView([center_lat, center_lon], 10);
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+            subdomains: 'abcd',
+            maxZoom: 19
+        }).addTo(map);
+        
+        // Layer to hold all the job markers
+        markersLayer = L.layerGroup().addTo(map);
+    }
+
+    function plotJobsOnMap(jobs = []) {
+        if (!map || !markersLayer) initMap();
+        
+        markersLayer.clearLayers(); // Clear old pins
+        jobMarkers = {}; // Clear marker cache
+        
+        const validJobs = []; // Jobs with valid lat/lon
+        
+        jobs.forEach(job => {
+            // CRITICAL: Assumes your API provides job.latitude and job.longitude
+            if (job.latitude && job.longitude) {
+                validJobs.push(job);
+                const lat = parseFloat(job.latitude);
+                const lon = parseFloat(job.longitude);
+                
+                if (isNaN(lat) || isNaN(lon)) return; // Skip if invalid data
+                
+                const marker = L.marker([lat, lon]);
+                
+                // Create popup content
+                const popupContent = `
+                  <b class="text-sky-600">${escapeHtml(job.title)}</b>
+                  <p class="text-slate-600">${escapeHtml(job.company)}</p>
+                  <p class="text-xs text-slate-500">${escapeHtml(job.location)}</p>
+                  <a href="${escapeHtml(job.redirect_url)}" target="_blank" rel="noopener" class="text-sky-600 font-bold text-sm">View Job &rarr;</a>
+                `;
+                marker.bindPopup(popupContent);
+                
+                marker.addTo(markersLayer);
+                
+                // Store marker for linking from list
+                // Use redirect_url as a unique ID
+                jobMarkers[job.redirect_url] = marker;
+            }
+        });
+        
+        // Zoom map to fit all markers
+        if (validJobs.length > 0) {
+            try {
+                const bounds = markersLayer.getBounds();
+                if (bounds.isValid()) {
+                    map.fitBounds(bounds, { padding: [50, 50] });
+                }
+            } catch (e) {
+                console.warn("Could not fit map bounds:", e);
+                map.setView([40.28, -74.68], 10); // Reset view
+            }
+        } else {
+             map.setView([40.28, -74.68], 10); // Reset view if no jobs
+        }
+    }
 
     // --- Events ---
-    document.addEventListener('DOMContentLoaded', applySplashTheme);
+    document.addEventListener('DOMContentLoaded', () => {
+        applySplashTheme();
+        initMap(); // Initialize the map on page load
+    });
+    
     startBtn.addEventListener('click', () => {
-      startBtn.classList.add('hidden'); splashLoader.classList.remove('hidden'); loadJobs(true);
+      startBtn.classList.add('hidden'); splashLoader.classList.remove('hidden'); 
+      loadJobs(true);
     });
+    
     applyBtn.addEventListener('click', () => loadJobs(false));
-    toggleFiltersBtn.addEventListener('click', () => {
-      const isHidden = filterContainer.classList.toggle('hidden');
-      toggleFiltersBtn.textContent = isHidden ? 'Show Filters' : 'Hide Filters';
-    });
+    
+    // Filter toggle button removed
+    // toggleFiltersBtn.addEventListener('click', () => { ... });
+    
     jobSearchTab.addEventListener('click', () => switchTab('jobs'));
     employerDiscoveryTab.addEventListener('click', () => switchTab('employers'));
     aiCounselorTab.addEventListener('click', () => switchTab('counselor'));
+    
     filterBar.addEventListener('keydown', (e) => { if (e.key === 'Enter') loadJobs(false); });
 
+    // Modal Events (Unchanged)
     closeRouteModalBtn.addEventListener('click', hideRouteModal);
     routeModal.addEventListener('click', (e)=>{ if(e.target===routeModal) hideRouteModal(); });
     closeAssistantModalBtn.addEventListener('click', hideAssistantModal);
@@ -344,11 +469,31 @@
     closeMapModalBtn.addEventListener('click', hideMapModal);
     mapModal.addEventListener('click', (e)=>{ if(e.target===mapModal) hideMapModal(); });
 
+    // AI Counselor Events (Unchanged)
     getSuggestionsBtn?.addEventListener('click', getCareerSuggestions);
     suggestionsContainer.addEventListener('click', (e)=>{
       if (e.target.classList.contains('suggestion-btn')){
         kwInput.value = e.target.textContent; switchTab('jobs'); loadJobs(false);
       }
+    });
+    
+    // NEW: Click handler for job list to pan map
+    jobsContainer.addEventListener('click', (e) => {
+        const card = e.target.closest('.job-card');
+        if (!card) return; // Click wasn't on a card
+        
+        // Don't intercept clicks on buttons or links inside the card
+        if (e.target.closest('a') || e.target.closest('button')) {
+            return;
+        }
+
+        const jobId = card.dataset.jobId; // We'll add this in renderJobs()
+        const marker = jobMarkers[jobId];
+        
+        if (map && marker) {
+            map.flyTo(marker.getLatLng(), 15); // Zoom in
+            marker.openPopup();
+        }
     });
 
     // --- Tabs ---
@@ -357,22 +502,30 @@
       jobSearchTab.classList.toggle('active', tab==='jobs');
       employerDiscoveryTab.classList.toggle('active', tab==='employers');
       aiCounselorTab.classList.toggle('active', tab==='counselor');
+      
       jobSearchContainer.classList.toggle('hidden', tab!=='jobs');
       employerDiscoveryContainer.classList.toggle('hidden', tab!=='employers');
       aiCounselorContainer.classList.toggle('hidden', tab!=='counselor');
-      filterContainer.classList.toggle('hidden', tab==='counselor');
+      
+      // filterContainer is now part of job-search-view, so no need to hide
       statsEl.classList.toggle('hidden', tab==='counselor');
-      visualsContainer.classList.toggle('hidden', tab!=='jobs');
+      visualsContainer.classList.toggle('hidden', tab!=='jobs' || !allJobs.length);
+      
       if (tab!=='counselor') renderStats(allJobs); else statsEl.textContent='';
+      
+      // NEW: Tell Leaflet to resize itself when tab becomes visible
+      if (tab === 'jobs' && map) {
+          setTimeout(() => {
+              map.invalidateSize();
+          }, 10);
+      }
     }
 
     function updateView(){
-      jobSearchContainer.classList.toggle('hidden', activeTab!=='jobs');
-      employerDiscoveryContainer.classList.toggle('hidden', activeTab!=='employers');
-      aiCounselorContainer.classList.toggle('hidden', activeTab!=='counselor');
+      // This is now handled by switchTab()
     }
 
-    // --- AI Counselor ---
+    // --- AI Counselor (Unchanged) ---
     async function getCareerSuggestions(){
       const txt = (userInput?.value || '').trim();
       if (!txt){ alert('Please describe your skills or interests first.'); return; }
@@ -397,7 +550,7 @@
         `</div>`;
     }
 
-    // --- Modals ---
+    // --- Modals (Unchanged, though mapModal is now redundant) ---
     async function showMapModal(job){
       mapModalJobInfo.innerHTML = `<p class="font-bold text-sky-700">${escapeHtml(job.title)}</p><p class="text-sm text-slate-500">${escapeHtml(job.location)}</p>`;
       mapIframe.src = 'about:blank';
@@ -424,7 +577,6 @@
     function hideAssistantModal(){ assistantModal.classList.add('opacity-0'); setTimeout(()=>assistantModal.classList.add('hidden'),300); }
     function showPartnershipModal(){ partnershipModal.classList.remove('hidden'); setTimeout(()=>partnershipModal.classList.remove('opacity-0'),10); }
     function hidePartnershipModal(){ partnershipModal.classList.add('opacity-0'); setTimeout(()=>partnershipModal.classList.add('hidden'),300); }
-
     async function getJobInsights(job){
       assistantContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Generating insights...</p></div>`;
       showAssistantModal();
@@ -441,7 +593,6 @@
         assistantContent.innerHTML = `<div class="p-4 bg-red-50 text-red-700 rounded-xl text-center"><h3 class="font-bold">Could not get insights.</h3><p class="text-sm mt-1">${escapeHtml(err.message)}</p></div>`;
       }
     }
-
     async function getPartnershipInsights(companyName, companyLocations){
       partnershipContent.innerHTML = `<div class="flex justify-center items-center p-8"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-4 text-slate-500">Analyzing partnership potential...</p></div>`;
       showPartnershipModal();
@@ -488,7 +639,7 @@
       });
     }
 
-    // --- Core: Load Jobs ---
+    // --- Core: Load Jobs (MODIFIED) ---
     async function loadJobs(isInitial=false){
       const placeholder = `<div class="flex flex-col items-center justify-center p-10 col-span-full"><div class="loader dark"></div><p class="mt-4 text-sm font-medium text-slate-500">Searching...</p></div>`;
       if (!isInitial){ jobsContainer.innerHTML = placeholder; employersContainer.innerHTML = placeholder; }
@@ -528,7 +679,13 @@
           return wageMatch && industryMatch;
         });
 
-        renderJobs(allJobs); renderEmployers(allJobs); renderStats(allJobs); renderVisuals(allJobs); updateView();
+        // MODIFIED: Render functions
+        renderJobs(allJobs);         // Renders list in sidebar
+        renderEmployers(allJobs);   // For the other tab
+        renderStats(allJobs);       // For the stats line
+        renderVisuals(allJobs);     // For the charts in the sidebar
+        plotJobsOnMap(allJobs);     // NEW: Plots jobs on the main map
+        switchTab(activeTab);       // Ensure correct tab is shown
 
         const s = data.sources || {};
         const adzDiag = s.adzuna?.ok ? `${s.adzuna.count} from Adzuna` : (s.adzuna?.error || 'Adzuna down');
@@ -546,6 +703,7 @@
       }finally{
         if (isInitial){
           splashScreen.classList.add('opacity-0'); mainContent.classList.remove('opacity-0'); setTimeout(()=>splashScreen.classList.add('hidden'),500);
+          if (map) map.invalidateSize(); // Ensure map is sized correctly after splash
         }
       }
     }
@@ -559,6 +717,7 @@
         : `Found ${employerCount} employers with ${count} total jobs${locText}.`;
     }
 
+    // RenderVisuals (Charts) is unchanged, they will just appear in the sidebar
     function renderVisuals(jobs){
       if (!jobs || !jobs.length){ visualsContainer.innerHTML=''; visualsContainer.classList.add('hidden'); return; }
       visualsContainer.classList.remove('hidden');
@@ -590,6 +749,7 @@
       });
     }
 
+    // RenderJobs (MODIFIED)
     function renderJobs(jobs=[]){
       if (!jobs.length){
         jobsContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No jobs found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
@@ -598,12 +758,16 @@
       jobsContainer.innerHTML='';
       jobs.forEach(job=>{
         const card = document.createElement('article');
-        card.className='bg-white border border-slate-200 rounded-xl p-5 transition hover:shadow-lg hover:border-sky-300';
+        // NEW: Added .job-card class and data-job-id attribute
+        card.className='job-card bg-white border border-slate-200 rounded-xl p-5 transition hover:shadow-lg hover:border-sky-300 cursor-pointer';
+        card.dataset.jobId = job.redirect_url; // Use URL as unique ID
+        
         const q = (()=>{try{return getJobQuality(job)||{}}catch{return {}}})();
         const quality = { color:q.color||'yellow', text:q.text||'Potential Match', tooltip:q.tooltip||'This job meets some positive criteria.' };
         const qualityBadge = `<div class="tooltip"><span class="inline-flex items-center gap-1 bg-${quality.color}-100 text-${quality.color}-800 text-xs font-semibold px-2 py-0.5 rounded-full">${quality.color==='green'?'🟢':quality.color==='yellow'?'🟡':'🔴'} ${quality.text}</span><span class="tooltiptext">${escapeHtml(quality.tooltip)}</span></div>`;
         const transitBadge = isTransitFriendly(job.location) ? `<span class="inline-flex items-center gap-1 bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-0.5 rounded-full">🚌 Transit Friendly</span>` : '';
         const salaryHtml = formatSalary(job);
+        
         card.innerHTML = `
           <div class="flex justify-between items-start flex-wrap gap-2">
             <div>
@@ -622,18 +786,27 @@
           <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
             <div class="text-sm font-bold text-green-700">${salaryHtml}</div>
             <div class="flex items-center gap-2">
-              <button class="view-map-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition">🗺️ View on Map</button>
               <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition">Plan Commute</button>
               <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition">✨ Job Insights</button>
             </div>
           </div>`;
-        card.querySelector('.view-map-btn').addEventListener('click', ()=>showMapModal(job));
-        card.querySelector('.plan-commute-btn').addEventListener('click', ()=>showRouteModal(job));
-        card.querySelector('.job-assistant-btn').addEventListener('click', ()=>getJobInsights(job));
+          
+        // Re-attach event listeners for buttons inside the card
+        // card.querySelector('.view-map-btn').addEventListener('click', ()=>showMapModal(job)); // Removed
+        card.querySelector('.plan-commute-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); // Stop click from bubbling to the card
+            showRouteModal(job);
+        });
+        card.querySelector('.job-assistant-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); // Stop click from bubbling to the card
+            getJobInsights(job);
+        });
+        
         jobsContainer.appendChild(card);
       });
     }
 
+    // renderEmployers (Unchanged)
     function renderEmployers(jobs=[]){
       if (!jobs.length){
         employersContainer.innerHTML = `<div class="p-10 bg-white rounded-xl border border-slate-200 text-center"><h3 class="font-bold text-slate-700">No employers found.</h3><p class="text-sm mt-2 text-slate-500">Try broadening your search criteria.</p></div>`;
@@ -666,4 +839,3 @@
   </script>
 </body>
 </html>
-
