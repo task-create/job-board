@@ -6,20 +6,31 @@
   <title>TASK Job Dashboard</title>
   <meta name="description" content="Live job board and employer discovery tool for roles in Mercer County, NJ."/>
   
+  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   
+  <!-- NEW: Leaflet.js (for the map) -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 
   <style>
     :root { --brand-color:#0ea5e9; }
-    body { background:#f8fafc; color:#1e293b; }
+    body { 
+      background:#f8fafc; 
+      color:#1e293b; 
+      font-family: 'Inter', sans-serif; 
+    }
+     /* Apply Inter font */
+    body, input, select, button, textarea {
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    }
     #splash-screen,.modal{ transition:opacity .5s ease-out; }
     .line-clamp-3{ display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
     .tooltip{ position:relative; display:inline-block; }
-    .tooltip .tooltiptext{ visibility:hidden; width:220px; background:#555; color:#fff; text-align:center; border-radius:6px; padding:5px; position:absolute; z-index:1; bottom:125%; left:50%; margin-left:-110px; opacity:0; transition:opacity .3s; font-size:12px; }
+    .tooltip .tooltiptext{ visibility:hidden; width:220px; background:#555; color:#fff; text-align:center; border-radius:6px; padding:5px; position:absolute; z-index:1000; bottom:125%; left:50%; margin-left:-110px; opacity:0; transition:opacity .3s; font-size:12px; }
     .tooltip:hover .tooltiptext{ visibility:visible; opacity:1; }
     .tab-btn{ padding:8px 16px; font-weight:600; cursor:pointer; transition:.2s; border-bottom:3px solid transparent; color:#475569; }
     .tab-btn.active{ color:#0ea5e9; border-bottom-color:#0ea5e9; }
@@ -48,15 +59,24 @@
       z-index: 10;
     }
     #sidebar-content {
-      height: 85vh; /* Match map height */
+      /* Full height on mobile, map height on desktop */
+      height: auto;
+      max-height: 85vh; /* Match map height for scrolling */
       overflow-y: auto;
     }
+    @media (min-width: 1024px) { /* lg breakpoint */
+      #sidebar-content {
+        height: 85vh; /* Match map height on large screens */
+      }
+    }
+
     .leaflet-popup-content-wrapper {
       border-radius: 8px;
     }
     .leaflet-popup-content {
       font-size: 14px;
       line-height: 1.4;
+      margin: 10px;
     }
     .leaflet-popup-content b {
       color: var(--brand-color);
@@ -67,9 +87,13 @@
         box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     }
   </style>
+  <!-- Load Inter font -->
+  <link rel="preconnect" href="https://rsms.me/">
+  <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
 </head>
 <body>
 
+  <!-- Splash Screen (Unchanged) -->
   <div id="splash-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center">
     <div class="text-center">
       <h1 class="text-4xl font-bold tracking-tight text-white sm:text-5xl animate-fade-in" style="text-shadow:0 2px 4px rgba(0,0,0,.1);">TASK Job Dashboard</h1>
@@ -85,6 +109,7 @@
 
   <div id="main-content" class="opacity-0 transition-opacity duration-500">
     
+    <!-- MODIFIED: Header is simpler, filters are removed -->
     <header class="sticky top-0 z-20 bg-white/90 backdrop-blur-md border-b border-slate-200">
       <div class="max-w-7xl mx-auto px-4 py-4">
         <div class="flex justify-between items-center">
@@ -92,11 +117,13 @@
             <h1 class="text-2xl font-bold text-slate-900">TASK Job Dashboard</h1>
             <p class="text-sm text-slate-500">A live dashboard of local job openings and employer insights.</p>
           </div>
-          </div>
+          <!-- Filter toggle button removed from here -->
+        </div>
       </div>
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
+      <!-- Tabs (Unchanged) -->
       <div class="mb-6 flex justify-center border-b border-slate-200">
         <div class="flex items-center gap-4 -mb-px">
           <button id="job-search-tab" class="tab-btn active">Job Search</button>
@@ -110,15 +137,21 @@
         <p id="sourceDiag" class="text-xs text-slate-400 text-center mt-1"></p>
       </div>
 
+      <!-- NEW: Job Search View (Map + Sidebar Layout) -->
       <div id="job-search-view">
+        <!-- Responsive Grid: Sidebar first on mobile, then side-by-side on desktop -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          <div class="lg:col-span-1">
+          <!-- Column 1: Sidebar (Filters + Job List) -->
+          <!-- Order 1 on mobile, Order 1 on desktop -->
+          <div class="lg:col-span-1 lg:order-1">
             <div id="sidebar-content" class="space-y-4">
               
+              <!-- Filter bar (MOVED HERE) -->
               <div id="filter-container">
                 <div id="filter-bar" class="p-4 bg-white border border-slate-200 rounded-xl">
                   <h2 class="text-lg font-bold text-slate-800 mb-3">Find Jobs</h2>
+                  <!-- MODIFIED: Removed Entry Level checkbox div -->
                   <div class="grid grid-cols-1 gap-4 items-end">
                     <div>
                       <label for="kw" class="text-xs font-semibold text-slate-600">Keywords / Company</label>
@@ -148,40 +181,45 @@
                       <label for="wage" class="text-xs font-semibold text-slate-600">Min Wage ($/hr)</label>
                       <input id="wage" type="number" step="1" min="0" placeholder="e.g., 18" class="mt-1 w-full p-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-sky-500"/>
                     </div>
-                    <div class="flex items-center justify-between gap-4">
-                      <div class="flex items-center">
-                        <input id="entryLevel" type="checkbox" checked class="h-4 w-4 rounded border-gray-300 text-sky-600 focus:ring-sky-500">
-                        <label for="entryLevel" class="ml-2 block text-sm font-medium text-slate-700">Entry Level Only</label>
-                      </div>
-                      <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
-                        Find
-                      </button>
-                    </div>
+                    <button id="applyFilters" class="w-full bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors shadow">
+                      Find
+                    </button>
                   </div>
                 </div>
               </div>
               
+              <!-- Visuals container (CHARTS) -->
               <section id="visuals-container" class="p-4 bg-white border border-slate-200 rounded-xl hidden"></section>
 
+              <!-- Job list container -->
               <section id="jobs-container" class="space-y-4"></section>
 
             </div>
           </div>
           
-          <div class="lg:col-span-2">
-            <div id="map-container" class="sticky top-24">
+          <!-- Column 2: Map -->
+          <!-- Order 2 on mobile, Order 2 on desktop -->
+          <div class="lg:col-span-2 lg:order-2">
+            <!-- Sticky container for desktop map -->
+            <div class="lg:sticky lg:top-24">
               <div id="map" class="bg-slate-100 border border-slate-200">
+                 <!-- Leaflet map will be initialized here -->
+                 <div class="flex items-center justify-center h-full">
+                   <p class="text-slate-500">Map loading...</p>
                  </div>
+              </div>
             </div>
           </div>
 
         </div>
       </div>
 
+      <!-- Employer Discovery View (Unchanged) -->
       <div id="employer-discovery-view" class="hidden">
         <section id="employers-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></section>
       </div>
 
+      <!-- AI Counselor View (Unchanged) -->
       <div id="ai-counselor-view" class="hidden">
         <div class="max-w-2xl mx-auto p-6 bg-white border border-slate-200 rounded-xl">
           <h2 class="text-xl font-bold text-slate-800">AI Career Counselor</h2>
@@ -193,6 +231,8 @@
       </div>
     </main>
 
+    <!-- Modals -->
+    <!-- 'View on Map' Modal (Kept as fallback, though redundant) -->
     <div id="mapModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w/full max-w-2xl">
         <div class="flex justify-between items-center mb-4">
@@ -205,6 +245,8 @@
         </div>
       </div>
     </div>
+    
+    <!-- Route Modal (Unchanged) -->
     <div id="routeModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-30 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md">
         <div class="flex justify-between items-center mb-4">
@@ -223,6 +265,8 @@
         </div>
       </div>
     </div>
+    
+    <!-- Assistant Modal (Unchanged) -->
     <div id="assistantModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-xl">
         <div class="flex justify-between items-center mb-4">
@@ -232,6 +276,8 @@
         <div id="assistantContent"></div>
       </div>
     </div>
+    
+    <!-- Partnership Modal (Unchanged) -->
     <div id="partnershipModal" class="modal fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-40 hidden opacity-0">
       <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl transform transition-all">
         <div class="flex justify-between items-center mb-4">
@@ -242,11 +288,13 @@
       </div>
     </div>
 
+    <!-- Footer (Unchanged) -->
     <footer class="text-center py-8">
       <p class="text-xs text-slate-400">Transit link origin: TASK, 72 Escher St, Trenton, NJ 08609. (v1.0)</p>
     </footer>
   </div>
 
+  <!-- App Script -->
   <script>
     // --- Elements ---
     const splashScreen = document.getElementById('splash-screen');
@@ -260,12 +308,11 @@
     const locationFilter = document.getElementById('locationFilter');
     const industryInput = document.getElementById('industry');
     const wageInput = document.getElementById('wage');
-    const entryLevelCheckbox = document.getElementById('entryLevel');
+    // const entryLevelCheckbox = document.getElementById('entryLevel'); // REMOVED
     const applyBtn = document.getElementById('applyFilters');
     const visualsContainer = document.getElementById('visuals-container');
     const filterBar = document.getElementById('filter-bar');
     const filterContainer = document.getElementById('filter-container');
-    // const toggleFiltersBtn = document.getElementById('toggle-filters-btn'); // REMOVED
 
     const jobSearchTab = document.getElementById('job-search-tab');
     const employerDiscoveryTab = document.getElementById('employer-discovery-tab');
@@ -313,6 +360,10 @@
         : 'https://job-board-assistant.vercel.app';
     const TASK_ADDR = 'Trenton Area Soup Kitchen, 72 Escher St, Trenton, NJ 08609';
 
+    // --- NEW: MOCK DATA FLAG ---
+    // Set this to false once your API sends real job.latitude and job.longitude
+    const MOCK_DATA_MODE = true; 
+
     // --- Theme (Unchanged) ---
     function applySplashTheme(){
       const hour = new Date().getHours();
@@ -323,7 +374,7 @@
       splashScreen.className = `fixed inset-0 z-50 flex flex-col items-center justify-center ${theme}`;
     }
 
-    // --- Helpers (Unchanged) ---
+    // --- Helpers ---
     async function readJsonSafe(resp){
       const text = await resp.text();
       try { return { data: JSON.parse(text), raw: text }; }
@@ -335,7 +386,39 @@
       try { const json = JSON.parse(text); msg = json.error || json.message || msg; } catch {}
       throw new Error(msg);
     }
-    const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({'&':'&','<':'<','>':'>','"':'"',"'":'''}[m]));
+    const escapeHtml = (unsafe) => String(unsafe).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+    
+    // NEW: Mock data generator function
+    function addMockGeoData(jobs) {
+        console.warn("MOCK_DATA_MODE is ON. Generating fake coordinates for map.");
+        const baseLat = 40.28;
+        const baseLon = -74.68;
+        const spread = 0.15; // Approx 10-15 miles spread
+        
+        // Simple hash function to get consistent-ish random numbers
+        const simpleHash = (str) => {
+            if (!str) return 0;
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) {
+                const char = str.charCodeAt(i);
+                hash = ((hash << 5) - hash) + char;
+                hash = hash & hash; // Convert to 32bit integer
+            }
+            return Math.abs(hash);
+        };
+
+        jobs.forEach((job, index) => {
+            // Only add mock data if lat/lon doesn't already exist
+            if (!job.latitude && !job.longitude) {
+                const titleHash = simpleHash(job.title || `job-${index}`);
+                const companyHash = simpleHash(job.company || `company-${index}`);
+                
+                job.latitude = baseLat + (titleHash % 1000 / 1000 - 0.5) * spread * 2;
+                job.longitude = baseLon + (companyHash % 1000 / 1000 - 0.5) * spread * 2;
+            }
+        });
+    }
+
     const isTransitFriendly = (location) => {
       const HUBS = ['Trenton','Hamilton','Lawrence','Ewing','Princeton','West Windsor','East Windsor','Robbinsville','Marketplace','Quaker Bridge','Nassau Park','Transit Center','Sloan Ave','Route 1','Route 130','Broad St','State St'];
       if (!location) return false;
@@ -367,26 +450,45 @@
     
     // --- NEW: Map Functions ---
     function initMap() {
+        // Check if Leaflet is loaded
+        if (typeof L === 'undefined') {
+          console.error('Leaflet.js is not loaded.');
+          document.getElementById('map').innerHTML = '<p class="text-red-500 text-center p-4">Error: Map library failed to load.</p>';
+          return;
+        }
         if (map) return; // Only init once
         
         // Mercer County, NJ coordinates
         const center_lat = 40.28;
         const center_lon = -74.68;
         
-        map = L.map('map').setView([center_lat, center_lon], 10);
+        try {
+          map = L.map('map').setView([center_lat, center_lon], 10);
 
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-            subdomains: 'abcd',
-            maxZoom: 19
-        }).addTo(map);
-        
-        // Layer to hold all the job markers
-        markersLayer = L.layerGroup().addTo(map);
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+              attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+              subdomains: 'abcd',
+              maxZoom: 19
+          }).addTo(map);
+          
+          // Layer to hold all the job markers
+          markersLayer = L.layerGroup().addTo(map);
+        } catch(e) {
+          console.error("Failed to initialize Leaflet map:", e);
+          document.getElementById('map').innerHTML = '<p class="text-red-500 text-center p-4">Error: Could not initialize map.</p>';
+        }
     }
 
     function plotJobsOnMap(jobs = []) {
-        if (!map || !markersLayer) initMap();
+        if (!map || !markersLayer) {
+          console.warn("Map not initialized, attempting to init now.");
+          initMap();
+          // If map still not ready, exit
+          if (!map || !markersLayer) {
+            console.error("Map initialization failed. Cannot plot markers.");
+            return;
+          }
+        }
         
         markersLayer.clearLayers(); // Clear old pins
         jobMarkers = {}; // Clear marker cache
@@ -396,12 +498,16 @@
         jobs.forEach(job => {
             // CRITICAL: Assumes your API provides job.latitude and job.longitude
             if (job.latitude && job.longitude) {
-                validJobs.push(job);
+                
                 const lat = parseFloat(job.latitude);
                 const lon = parseFloat(job.longitude);
                 
-                if (isNaN(lat) || isNaN(lon)) return; // Skip if invalid data
-                
+                if (isNaN(lat) || isNaN(lon)) {
+                  console.warn("Skipping job with invalid lat/lon:", job.title, job.latitude, job.longitude);
+                  return; // Skip if invalid data
+                }
+
+                validJobs.push(job);
                 const marker = L.marker([lat, lon]);
                 
                 // Create popup content
@@ -418,6 +524,8 @@
                 // Store marker for linking from list
                 // Use redirect_url as a unique ID
                 jobMarkers[job.redirect_url] = marker;
+            } else {
+              // console.log("Job missing lat/lon:", job.title);
             }
         });
         
@@ -440,7 +548,8 @@
     // --- Events ---
     document.addEventListener('DOMContentLoaded', () => {
         applySplashTheme();
-        initMap(); // Initialize the map on page load
+        // Delay map init slightly to ensure DOM is fully ready
+        setTimeout(initMap, 100); 
     });
     
     startBtn.addEventListener('click', () => {
@@ -449,9 +558,6 @@
     });
     
     applyBtn.addEventListener('click', () => loadJobs(false));
-    
-    // Filter toggle button removed
-    // toggleFiltersBtn.addEventListener('click', () => { ... });
     
     jobSearchTab.addEventListener('click', () => switchTab('jobs'));
     employerDiscoveryTab.addEventListener('click', () => switchTab('employers'));
@@ -516,19 +622,25 @@
       // NEW: Tell Leaflet to resize itself when tab becomes visible
       if (tab === 'jobs' && map) {
           setTimeout(() => {
-              map.invalidateSize();
+              try {
+                map.invalidateSize();
+              } catch(e) {
+                console.warn("Could not invalidate map size:", e);
+              }
           }, 10);
       }
-    }
-
-    function updateView(){
-      // This is now handled by switchTab()
     }
 
     // --- AI Counselor (Unchanged) ---
     async function getCareerSuggestions(){
       const txt = (userInput?.value || '').trim();
-      if (!txt){ alert('Please describe your skills or interests first.'); return; }
+      if (!txt){ 
+        // Using a custom modal/toast is better, but alert is a fallback
+        // For this environment, we'll avoid alert() and log to console
+        console.warn('Please describe your skills or interests first.');
+        suggestionsContainer.innerHTML = `<p class="text-yellow-600 text-sm mt-2">Please describe your skills or interests first.</p>`
+        return; 
+      }
       suggestionsContainer.innerHTML = `<div class="flex items-center mt-4"><div class="loader !border-t-sky-500 !border-slate-300"></div><p class="ml-2 text-sm text-slate-500">Thinking of some ideas...</p></div>`;
       try{
         const url = `${API_BASE_URL}/api/career-counselor`;
@@ -635,7 +747,26 @@
           </div>
         </div>`;
       document.getElementById('copy-email-btn').addEventListener('click', (e)=>{
-        const t = document.getElementById('email-draft'); t.select(); document.execCommand('copy'); e.target.textContent='Copied!'; setTimeout(()=>e.target.textContent='Copy Email', 2000);
+        const t = document.getElementById('email-draft'); 
+        t.select(); 
+        try {
+          // Use modern clipboard API if available
+          if (navigator.clipboard) {
+            navigator.clipboard.writeText(t.value).then(() => {
+              e.target.textContent='Copied!';
+              setTimeout(()=>e.target.textContent='Copy Email', 2000);
+            });
+          } else {
+            // Fallback for older browsers
+            document.execCommand('copy');
+            e.target.textContent='Copied!';
+            setTimeout(()=>e.target.textContent='Copy Email', 2000);
+          }
+        } catch (err) {
+          console.error("Failed to copy text: ", err);
+          e.target.textContent='Failed to copy';
+          setTimeout(()=>e.target.textContent='Copy Email', 2000);
+        }
       });
     }
 
@@ -652,10 +783,10 @@
         params.set('where', whereQuery);
         params.set('days','7');
         params.set('limit','100');
-        if (entryLevelCheckbox.checked){
-          const existingQ = params.get('q') || '';
-          params.set('q', (`entry level ${existingQ}`).trim());
-        }
+        
+        // REMOVED: Entry level checkbox logic
+        // if (entryLevelCheckbox.checked){ ... }
+
         const url = `${API_BASE_URL}/api/fetch-jobs?${params.toString()}`;
         const resp = await fetch(url,{method:'GET',mode:'cors'});
         const {data, raw} = await readJsonSafe(resp);
@@ -668,6 +799,15 @@
         if (data.ok === false){ throw new Error(data.message || data.detail || 'Backend reported an error'); }
 
         const jobs = (data.jobs || []).filter(j => j && typeof j === 'object');
+
+        // --- MOCK DATA INJECTION ---
+        // This block adds fake coordinates to demonstrate map functionality.
+        // REMOVE THIS or set MOCK_DATA_MODE to false
+        // when your API provides real job.latitude and job.longitude
+        if (MOCK_DATA_MODE) {
+            addMockGeoData(jobs);
+        }
+        // --- END MOCK DATA ---
 
         const minWage = parseFloat(wageInput.value) || 0;
         const selectedIndustry = industryInput.value;
@@ -702,8 +842,11 @@
         jobsContainer.innerHTML = errorHtml; employersContainer.innerHTML = errorHtml; statsEl.textContent='Error';
       }finally{
         if (isInitial){
-          splashScreen.classList.add('opacity-0'); mainContent.classList.remove('opacity-0'); setTimeout(()=>splashScreen.classList.add('hidden'),500);
-          if (map) map.invalidateSize(); // Ensure map is sized correctly after splash
+          splashScreen.classList.add('opacity-0'); mainContent.classList.remove('opacity-0'); 
+          setTimeout(()=>{
+            splashScreen.classList.add('hidden');
+            if (map) map.invalidateSize(); // Ensure map is sized correctly after splash
+          }, 500);
         }
       }
     }
@@ -786,6 +929,7 @@
           <div class="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center gap-2 flex-wrap">
             <div class="text-sm font-bold text-green-700">${salaryHtml}</div>
             <div class="flex items-center gap-2">
+              <!-- Removed the 'View on Map' button as it's redundant -->
               <button class="plan-commute-btn bg-slate-100 text-slate-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-slate-200 transition">Plan Commute</button>
               <button class="job-assistant-btn bg-sky-100 text-sky-700 text-xs font-bold py-2 px-3 rounded-lg hover:bg-sky-200 transition">✨ Job Insights</button>
             </div>
@@ -839,3 +983,4 @@
   </script>
 </body>
 </html>
+
